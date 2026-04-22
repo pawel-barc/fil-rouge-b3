@@ -5,7 +5,7 @@ export const usersMock: User[] = [
     id: 1,
     username: "Franceska",
     email: "franceska@gmail.com",
-    password: "1234",
+    password: "12341234",
     role: "user",
     preferences: {
       jour: true,
@@ -22,7 +22,7 @@ export const usersMock: User[] = [
     id: 2,
     username: "Admin",
     email: "admin@gmail.com",
-    password: "1234",
+    password: "12341234",
     role: "admin",
     preferences: {
       jour: true,
@@ -39,7 +39,7 @@ export const usersMock: User[] = [
     id: 3,
     username: "CompanyOwner",
     email: "company@gmail.com",
-    password: "1234",
+    password: "12341234",
     role: "company",
     preferences: {
       jour: false,
