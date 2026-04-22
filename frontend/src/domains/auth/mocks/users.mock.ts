@@ -1,0 +1,55 @@
+/**Ce fichier contient différents rôles fictifs pour le développement du frontend */
+import type { User } from "../../user/types/user";
+export const usersMock: User[] = [
+  {
+    id: 1,
+    username: "Franceska",
+    email: "franceska@gmail.com",
+    password: "1234",
+    role: "user",
+    preferences: {
+      jour: true,
+      culture: true,
+      musique: true,
+      art: false,
+      tourisme: false,
+      associatif: true,
+      famille: true,
+      sport: false,
+    },
+  },
+  {
+    id: 2,
+    username: "Admin",
+    email: "admin@gmail.com",
+    password: "1234",
+    role: "admin",
+    preferences: {
+      jour: true,
+      culture: true,
+      musique: true,
+      art: false,
+      tourisme: false,
+      associatif: true,
+      famille: true,
+      sport: false,
+    },
+  },
+  {
+    id: 3,
+    username: "CompanyOwner",
+    email: "company@gmail.com",
+    password: "1234",
+    role: "company",
+    preferences: {
+      jour: false,
+      culture: true,
+      musique: true,
+      art: true,
+      tourisme: true,
+      associatif: false,
+      famille: false,
+      sport: false,
+    },
+  },
+];
