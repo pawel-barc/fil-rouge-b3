@@ -308,7 +308,10 @@ function App() {
         <AppSplash isReady={isHomeReady} onFinished={hideSplash} />
       )}
 
-      <ToastContainer position="top-right" autoClose={3000} theme="light" />
+      <ToastContainer 
+      position="top-right" 
+      autoClose={3000} 
+      theme="light" />
     </>
   );
 }
