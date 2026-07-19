@@ -200,7 +200,7 @@ export default function OrganizationDetailPage() {
 
     updateOrganization(organization.id, result.data);
     closeOrganizationEditor();
-    toast.success("Organisation mise a jour");
+    toast.success("Organisation mise à jour");
   };
 
   const confirmDeleteOrganization = async () => {
@@ -215,7 +215,7 @@ export default function OrganizationDetailPage() {
 
     deleteOrganization(organization.id);
     setPendingDeleteOrganization(false);
-    toast.success("Organisation supprimee");
+    toast.success("Organisation supprimée");
     navigate(ROUTES.USER.ORGANIZATIONS, { replace: true });
   };
 
@@ -257,7 +257,7 @@ export default function OrganizationDetailPage() {
       image: eventForm.image.trim(),
       price: Number(eventForm.price.trim()),
       ticketing_link: eventForm.ticketing_link.trim(),
-      source: eventForm.source.trim() || "Evenement cree par une organisation",
+      source: eventForm.source.trim() || "Événement créé par une organisation",
       is_active: false,
       suspended_until: null,
       suspension_reason: null,
@@ -273,7 +273,7 @@ export default function OrganizationDetailPage() {
       }
 
       addEvent(result.data);
-      toast.success("Evenement cree en attente de validation");
+      toast.success("Événement créé en attente de validation");
     } else {
       const result = await eventsApi.update(editingEventId, eventPayload);
 
@@ -283,7 +283,7 @@ export default function OrganizationDetailPage() {
       }
 
       updateEvent(editingEventId, result.data);
-      toast.success("Evenement mis a jour en attente de validation");
+      toast.success("Événement mis à jour en attente de validation");
     }
 
     closeEventEditor();
@@ -302,7 +302,7 @@ export default function OrganizationDetailPage() {
     deleteEvent(pendingDeleteEventId);
     setPendingDeleteEventId(null);
     closeEventEditor();
-    toast.success("Evenement supprime");
+    toast.success("Événement supprimé");
   };
 
   const pendingDeleteEvent = events.find((event) => event.id === pendingDeleteEventId);
@@ -310,7 +310,7 @@ export default function OrganizationDetailPage() {
   if (!organization || !organizationStatus) {
     return (
       <section className="organization-detail">
-        <ErrorMessage message="Organisation introuvable ou non rattachee a votre compte." />
+        <ErrorMessage message="Organisation introuvable ou non rattachée à votre compte." />
         <Link className="btn btn--secondary" to={ROUTES.USER.ORGANIZATIONS}>
           Retour aux organisations
         </Link>
@@ -322,7 +322,7 @@ export default function OrganizationDetailPage() {
     <section className="organization-detail">
       <ConfirmDialog
         confirmLabel="Supprimer"
-        message={`Supprimer l'organisation "${organization.name}" et masquer ses evenements ?`}
+        message={`Supprimer l'organisation "${organization.name}" et masquer ses événements ?`}
         open={pendingDeleteOrganization}
         title="Supprimer l'organisation"
         onCancel={() => setPendingDeleteOrganization(false)}
@@ -335,11 +335,11 @@ export default function OrganizationDetailPage() {
         confirmLabel="Supprimer"
         message={
           pendingDeleteEvent
-            ? `Supprimer l'evenement "${pendingDeleteEvent.title}" ?`
-            : "Supprimer cet evenement ?"
+            ? `Supprimer l'événement "${pendingDeleteEvent.title}" ?`
+            : "Supprimer cet événement ?"
         }
         open={pendingDeleteEventId !== null}
-        title="Supprimer l'evenement"
+        title="Supprimer l'événement"
         onCancel={() => setPendingDeleteEventId(null)}
         onConfirm={() => {
           void confirmDeleteEvent();
@@ -373,7 +373,7 @@ export default function OrganizationDetailPage() {
       </FormModal>
 
       <FormModal
-        ariaLabel={editingEventId === null ? "Creer un evenement" : "Modifier un evenement"}
+        ariaLabel={editingEventId === null ? "Créer un événement" : "Modifier un événement"}
         open={eventForm !== null}
         size="lg"
         onClose={closeEventEditor}
@@ -383,7 +383,7 @@ export default function OrganizationDetailPage() {
             errors={eventErrors}
             form={eventForm}
             modalError={modalError}
-            title={editingEventId === null ? "Creer un evenement" : "Modifier un evenement"}
+            title={editingEventId === null ? "Créer un événement" : "Modifier un événement"}
             onCancel={closeEventEditor}
             onCategoryToggle={toggleEventCategory}
             onFieldChange={updateEventField}
@@ -463,7 +463,7 @@ export default function OrganizationDetailPage() {
             <dd>{organization.siret || "Non renseigne"}</dd>
           </div>
           <div>
-            <dt>Coordonnees</dt>
+            <dt>Coordonnées</dt>
             <dd>
               {organization.latitude ?? "Non renseignee"},{" "}
               {organization.longitude ?? "Non renseignee"}
@@ -479,16 +479,16 @@ export default function OrganizationDetailPage() {
       <section className="organization-detail__section organization-events-panel">
         <div className="organization-events-panel__header">
           <div>
-            <h2>Evenements</h2>
-            <p>Creation, modification et suppression des evenements de cette organisation.</p>
+            <h2>Événements</h2>
+            <p>Création, modification et suppression des événements de cette organisation.</p>
           </div>
           <Button type="button" onClick={startEventCreate}>
-            Creer un evenement
+            Créer un événement
           </Button>
         </div>
 
         {organizationEvents.length === 0 ? (
-          <EmptyState message="Aucun evenement rattache a cette organisation." />
+          <EmptyState message="Aucun événement rattaché à cette organisation." />
         ) : (
           <div className="organization-event-list">
             {organizationEvents.map((event) => {

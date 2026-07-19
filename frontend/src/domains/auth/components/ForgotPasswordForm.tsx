@@ -44,9 +44,9 @@ export default function ForgotPassword() {
 
       setServerMessage(result.data.message);
       setDevResetLink(result.data.reset_url ?? result.data.resetLink ?? null);
-      toast.success("Demande de reinitialisation traitee");
+      toast.success("Demande de réinitialisation traitée");
     } catch {
-      setServerMessage("Erreur lors de la demande de reinitialisation");
+      setServerMessage("Erreur lors de la demande de réinitialisation");
     } finally {
       setLoading(false);
     }
@@ -76,7 +76,7 @@ export default function ForgotPassword() {
 
         {devResetLink && (
           <p className="dev-reset-link">
-            Lien de reinitialisation de developpement:{" "}
+            Lien de réinitialisation de développement:{" "}
             <FormModalLink to={new URL(devResetLink).pathname}>ouvrir</FormModalLink>
           </p>
         )}
@@ -86,7 +86,7 @@ export default function ForgotPassword() {
         </Button>
       </form>
 
-      <FormModalLink to={ROUTES.PUBLIC.LOGIN}>Retour a la connexion</FormModalLink>
+      <FormModalLink to={ROUTES.PUBLIC.LOGIN}>Retour à la connexion</FormModalLink>
     </div>
   );
 }

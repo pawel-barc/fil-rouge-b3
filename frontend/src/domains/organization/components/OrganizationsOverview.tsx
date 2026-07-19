@@ -197,7 +197,7 @@ export default function OrganizationsPage() {
       />
 
       {userOrganizations.length === 0 ? (
-        <EmptyState message="Aucune organisation rattachee à votre compte." />
+        <EmptyState message="Aucune organisation rattachée à votre compte." />
       ) : (
         <div className="organization-card-grid">
           {userOrganizations.map((organization) => {

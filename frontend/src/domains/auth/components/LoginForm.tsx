@@ -56,7 +56,7 @@ export default function LoginForm() {
       }
 
       navigate(ROUTES.PUBLIC.HOME, { replace: true });
-      toast.success("Connexion reussie");
+      toast.success("Connexion réussie");
     } finally {
       setLoading(false);
     }
@@ -109,7 +109,7 @@ export default function LoginForm() {
       </Button>
 
       <div className="auth-login-form__links">
-        <Link to={ROUTES.PUBLIC.REGISTER}>Creer un compte</Link>
+        <Link to={ROUTES.PUBLIC.REGISTER}>Créer un compte</Link>
         <FormModalLink to={ROUTES.PUBLIC.FORGOT_PASSWORD}>
           Mot de passe oublie ?
         </FormModalLink>

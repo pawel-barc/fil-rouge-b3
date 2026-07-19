@@ -4,7 +4,7 @@ import {
   type ApiResult,
 } from "../../../shared/api/api.types";
 import { apiRequest } from "../../../shared/api/httpClient";
-import { toBackendId, toLocalApiId } from "../../../shared/api/idMapping";
+import { toBackendId } from "../../../shared/api/idMapping";
 import { mediaApi } from "../../../shared/api/media.api";
 import { isDataImageValue } from "../../../shared/utils/imageUpload";
 import type { Organization } from "../../organization/types/organization";
@@ -128,13 +128,13 @@ const getNormalizedEventImage = (event: Event) =>
 const normalizeEventFromApi = (event: Event): Event => ({
   ...event,
   ...normalizeEventDateTimes(event),
-  id: toLocalApiId(event.id) ?? event.id,
-  organization_id: toLocalApiId(event.organization_id) ?? event.organization_id ?? 0,
+  id: event.id,
+  organization_id: event.organization_id ?? 0,
   image: getNormalizedEventImage(event),
   organization: event.organization
     ? {
         ...event.organization,
-        id: toLocalApiId(event.organization.id) ?? event.organization.id,
+        id: event.organization.id,
       }
     : event.organization,
 });
@@ -146,17 +146,17 @@ const toApiList = <Item>(items: Item[] | null | undefined): Item[] =>
 
 const normalizeFavoriteFromApi = (favorite: Favorite): Favorite => ({
   ...favorite,
-  id: toLocalApiId(favorite.id) ?? favorite.id,
-  user_id: toLocalApiId(favorite.user_id) ?? favorite.user_id,
-  event_id: toLocalApiId(favorite.event_id) ?? favorite.event_id,
+  id: favorite.id,
+  user_id: favorite.user_id,
+  event_id: favorite.event_id,
   event: favorite.event ? normalizeEventFromApi(favorite.event) : favorite.event,
 });
 
 const normalizeHistoryFromApi = (history: History): History => ({
   ...history,
-  id: toLocalApiId(history.id) ?? history.id,
-  user_id: toLocalApiId(history.user_id) ?? history.user_id,
-  event_id: toLocalApiId(history.event_id) ?? history.event_id,
+  id: history.id,
+  user_id: history.user_id,
+  event_id: history.event_id,
   event: history.event ? normalizeEventFromApi(history.event) : history.event,
 });
 

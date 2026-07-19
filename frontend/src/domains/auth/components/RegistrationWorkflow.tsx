@@ -41,7 +41,7 @@ type WorkflowStep =
 
 const workflowSteps = [
   { key: "user-info", label: "Infos" },
-  { key: "user-preferences", label: "Preferences" },
+  { key: "user-preferences", label: "Préférences" },
   { key: "organizer", label: "Organisateur" },
   { key: "organization", label: "Organisation" },
 ] as const;
@@ -113,7 +113,7 @@ export default function RegistrationWorkflow() {
     );
 
     if (existingAccount) {
-      return "Cet email est deja utilise";
+      return "Cet email est déjà utilisé";
     }
 
     const existingUsername = users.find(
@@ -123,7 +123,7 @@ export default function RegistrationWorkflow() {
     );
 
     if (existingUsername) {
-      return "Ce nom d'utilisateur est deja utilise";
+      return "Ce nom d'utilisateur est déjà utilisé";
     }
 
     return null;
@@ -165,7 +165,7 @@ export default function RegistrationWorkflow() {
           setUserEventPreferences(result.data.user_id, preferencesResult.data);
         }
       }
-      toast.success("Compte cree avec succes");
+      toast.success("Compte créé avec succès");
       navigate(ROUTES.PUBLIC.HOME, { replace: true });
     } finally {
       setLoading(false);
@@ -191,7 +191,7 @@ export default function RegistrationWorkflow() {
     setServerError(null);
 
     if (preferences.length === 0) {
-      setPreferencesError("Selectionnez au moins une preference d'evenement.");
+        setPreferencesError("Sélectionnez au moins une préférence d'événement.");
       return;
     }
 
@@ -354,7 +354,7 @@ export default function RegistrationWorkflow() {
     <div className="auth-page auth-page--wide auth-page--register">
       <div className="auth-mobile-hero">
         <p className="auth-mobile-hero__brand">Mappening</p>
-        <p>Trouvez les meilleurs evenements autour de vous !</p>
+        <p>Trouvez les meilleurs événements autour de vous !</p>
       </div>
 
       <div className="auth-login-stack auth-register-stack">
@@ -470,7 +470,7 @@ export default function RegistrationWorkflow() {
 
         {step === "user-preferences" && (
           <section className="auth-form-section">
-            <h2>Preferences d'evenements</h2>
+            <h2>Préférences d'événements</h2>
             <PreferencesGrid
               selected={preferences}
               toggle={(category) => {
@@ -498,7 +498,7 @@ export default function RegistrationWorkflow() {
       {step === "organizer-choice" && (
         <section className="auth-choice" aria-labelledby="organizer-choice-title">
           <h2 id="organizer-choice-title">
-            Souhaitez-vous egalement organiser des evenements ?
+            Souhaitez-vous également organiser des événements ?
           </h2>
 
           {serverError && <ErrorMessage message={serverError} />}
@@ -547,7 +547,7 @@ export default function RegistrationWorkflow() {
                 id="registration-organizer-job-role"
                 autoComplete="organization-title"
                 hasError={!!organizerErrors.job_role}
-                placeholder="Responsable evenementiel"
+                placeholder="Responsable événementiel"
                 value={organizerForm.job_role}
                 onChange={(event) =>
                   updateOrganizerField("job_role", event.target.value)
@@ -596,7 +596,7 @@ export default function RegistrationWorkflow() {
               Precedent
             </Button>
             <Button loading={loading} type="submit">
-              Creer le compte
+              Créer le compte
             </Button>
           </ActionRow>
         </form>

@@ -1,5 +1,4 @@
 import { apiRequest } from "../../../shared/api/httpClient";
-import { toLocalApiId } from "../../../shared/api/idMapping";
 import type { ApiResult } from "../../../shared/api/api.types";
 import {
   ROLE_IDS,
@@ -80,6 +79,7 @@ type AuthCheckResponse = {
 const backendRoleToFrontendRole = (role: string): Role => {
   if (role === "admin") return "admin";
   if (role === "moderator") return "moderator";
+  if (role === "organization") return "organization";
   return "user";
 };
 
@@ -90,8 +90,8 @@ const toAuthenticatedUser = (user: BackendAuthUser): AuthenticatedUser => {
     .filter(Boolean)
     .join(" ");
   const loginEmail = user.login_email ?? user.email;
-  const accountId = toLocalApiId(user.account_id ?? user.id) ?? user.id;
-  const userId = toLocalApiId(user.user_id ?? user.id);
+  const accountId = user.account_id ?? user.id;
+  const userId = user.user_id ?? user.id;
 
   return {
     id: accountId,
@@ -99,13 +99,14 @@ const toAuthenticatedUser = (user: BackendAuthUser): AuthenticatedUser => {
     login_email: loginEmail,
     role,
     role_id: ROLE_IDS[role],
-    username: user.username || displayName || loginEmail.split("@")[0] || loginEmail,
+    username:
+      user.username || displayName || loginEmail.split("@")[0] || loginEmail,
     is_active: user.is_active,
     suspended_until: user.suspended_until ?? null,
     suspension_reason: user.suspension_reason ?? null,
     created_at: user.created_at,
     user_id: userId,
-    organization_id: toLocalApiId(user.organization_id),
+    organization_id: user.organization_id,
     auth_source: "api",
   };
 };
@@ -150,7 +151,9 @@ export const authHttpApi = {
       method: "POST",
     });
 
-    return result.ok ? { ok: true, data: toAuthenticatedUser(result.data.user) } : result;
+    return result.ok
+      ? { ok: true, data: toAuthenticatedUser(result.data.user) }
+      : result;
   },
 
   async registerOrganization(
@@ -164,7 +167,9 @@ export const authHttpApi = {
       },
     );
 
-    return result.ok ? { ok: true, data: toAuthenticatedUser(result.data.user) } : result;
+    return result.ok
+      ? { ok: true, data: toAuthenticatedUser(result.data.user) }
+      : result;
   },
 
   async refresh(): Promise<ApiResult<null>> {
@@ -194,7 +199,9 @@ export const authHttpApi = {
     });
   },
 
-  async changePassword(payload: ChangePasswordPayload): Promise<ApiResult<null>> {
+  async changePassword(
+    payload: ChangePasswordPayload,
+  ): Promise<ApiResult<null>> {
     const result = await apiRequest<{ ok: true }>("/api/auth/password", {
       body: payload,
       method: "PATCH",

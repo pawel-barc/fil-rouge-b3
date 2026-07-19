@@ -85,7 +85,7 @@ const formModalRoutes = [
   { path: ROUTES.USER.PARAMETERS, label: "Paramètres utilisateur" },
   { path: ROUTES.USER.BECOME_ORGANIZER, label: "Devenir organisateur" },
   { path: ROUTES.USER.CREATE_ORGANIZATION, label: "Ajouter une organisation" },
-  { path: ROUTES.ORGANIZATION.CREATE, label: "Nouvel evenement" },
+  { path: ROUTES.ORGANIZATION.CREATE, label: "Nouvel événement" },
 ] as const;
 
 const getFormModalLabel = (pathname: string) =>

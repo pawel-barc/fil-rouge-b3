@@ -95,7 +95,7 @@ const validateForm = (form: OrganizationProfileForm): OrganizationProfileErrors 
   }
 
   if (form.categories.length === 0) {
-    errors.categories = "Selectionnez au moins une categorie";
+    errors.categories = "Sélectionnez au moins une catégorie";
   }
 
   return errors;
@@ -161,7 +161,7 @@ export default function OrganizationProfile() {
     );
 
     if (existingContactEmail) {
-      setServerError("Cet email de contact est deja utilise");
+      setServerError("Cet email de contact est déjà utilisé");
       setIsSubmitting(false);
       return;
     }
@@ -173,7 +173,7 @@ export default function OrganizationProfile() {
     );
 
     if (existingSiret) {
-      setServerError("Ce SIRET est deja utilise");
+      setServerError("Ce SIRET est déjà utilisé");
       setIsSubmitting(false);
       return;
     }
@@ -206,7 +206,7 @@ export default function OrganizationProfile() {
       username: form.name.trim(),
     });
 
-    toast.success("Profil organization mis a jour");
+    toast.success("Profil organisation mis à jour");
     setIsSubmitting(false);
   };
 

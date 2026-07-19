@@ -29,7 +29,7 @@ export type RegisterFormData = z.infer<typeof registerSchema>;
 
 export const organizationRegisterSchema = z
   .object({
-    name: z.string().min(2, "Nom de l'organization requis"),
+    name: z.string().min(2, "Nom de l'organisation requis"),
     member_name: z.string().min(2, "Nom du membre requis").max(50, "Nom trop long"),
     member_job_role: z
       .string()
@@ -61,7 +61,7 @@ export const organizationRegisterSchema = z
     siret: z.string().regex(/^\d{14}$/, "Le SIRET doit contenir 14 chiffres"),
     categories: z
       .array(z.enum(CATEGORIES))
-      .min(1, "Selectionnez au moins une categorie"),
+      .min(1, "Sélectionnez au moins une catégorie"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Les mots de passe ne correspondent pas",

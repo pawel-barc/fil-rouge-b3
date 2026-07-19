@@ -159,7 +159,7 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
     }
 
     upsertOrganizers([memberResult.data]);
-    toast.success("Organisation créée et rattachee à votre compte");
+    toast.success("Organisation créée et rattachée à votre compte");
     setIsSubmitting(false);
     navigate(ROUTES.USER.ORGANIZATIONS, { replace: true });
   };
@@ -168,7 +168,7 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
     return (
       <section className="organization-setup">
         <h1>{title}</h1>
-        <ErrorMessage message="Vous devez être connecte avec un compte utilisateur." />
+        <ErrorMessage message="Vous devez être connecté avec un compte utilisateur." />
       </section>
     );
   }

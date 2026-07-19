@@ -3,7 +3,7 @@ import {
   type ApiResult,
 } from "../../../shared/api/api.types";
 import { apiRequest } from "../../../shared/api/httpClient";
-import { toBackendId, toLocalApiId } from "../../../shared/api/idMapping";
+import { toBackendId } from "../../../shared/api/idMapping";
 import { mediaApi } from "../../../shared/api/media.api";
 import { isDataImageValue } from "../../../shared/utils/imageUpload";
 import type { Organization } from "../types/organization";
@@ -55,16 +55,15 @@ const ORGANIZATIONS_API_ENDPOINTS = {
 
 const normalizeOrganizationFromApi = (organization: Organization): Organization => ({
   ...organization,
-  id: toLocalApiId(organization.id) ?? organization.id,
-  account_id: toLocalApiId(organization.account_id) ?? organization.account_id,
+  id: organization.id,
+  account_id: organization.account_id,
 });
 
 const normalizeOrganizerFromApi = (organizer: Organizer): Organizer => ({
   ...organizer,
-  id: toLocalApiId(organizer.id) ?? organizer.id,
-  user_id: toLocalApiId(organizer.user_id) ?? organizer.user_id,
-  organization_id:
-    toLocalApiId(organizer.organization_id) ?? organizer.organization_id,
+  id: organizer.id,
+  user_id: organizer.user_id,
+  organization_id: organizer.organization_id,
 });
 
 const toApiList = <Item>(items: Item[] | null | undefined): Item[] =>

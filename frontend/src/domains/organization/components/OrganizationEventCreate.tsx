@@ -83,7 +83,7 @@ export default function OrganizationDashboard() {
     setServerError(null);
 
     if (!selectedOrganization) {
-      setServerError("Impossible d'identifier l'organisation connectee");
+      setServerError("Impossible d'identifier l'organisation connectée");
       return;
     }
 
@@ -108,7 +108,7 @@ export default function OrganizationDashboard() {
       image: form.image.trim(),
       price: Number(form.price.trim()),
       ticketing_link: form.ticketing_link.trim(),
-      source: "Evenement cree par une organisation",
+      source: "Événement créé par une organisation",
       is_active: false,
     };
 
@@ -129,7 +129,7 @@ export default function OrganizationDashboard() {
       !persistedResult.data.some((event) => event.id === result.data.id)
     ) {
       setServerError(
-        "L'evenement a ete envoye, mais il n'a pas pu etre confirme en base. Rechargez la page ou reessayez.",
+        "L'événement a été envoyé, mais il n'a pas pu être confirmé en base. Rechargez la page ou réessayez.",
       );
       setIsSubmitting(false);
       return;
@@ -137,7 +137,7 @@ export default function OrganizationDashboard() {
 
     upsertEvents(persistedResult.data);
     setForm(emptyEventForm());
-    toast.success("Evenement envoye en attente de publication");
+    toast.success("Événement envoyé en attente de publication");
     setIsSubmitting(false);
     navigate(ROUTES.USER.EVENTS);
     requestAnimationFrame(() => {
@@ -150,8 +150,8 @@ export default function OrganizationDashboard() {
       <div className="organization-dashboard">
         <h2>Aucune organisation validee</h2>
         <p>
-          Vous devez creer une organisation et attendre sa validation avant de
-          pouvoir creer des evenements.
+          Vous devez créer une organisation et attendre sa validation avant de
+          pouvoir créer des événements.
         </p>
       </div>
     );
@@ -163,7 +163,7 @@ export default function OrganizationDashboard() {
         <h2>Aucune organisation validee</h2>
         <p>
           Votre compte doit etre valide par un administrateur avant de pouvoir
-          creer des événements.
+          créer des événements.
         </p>
       </div>
     );
@@ -172,8 +172,8 @@ export default function OrganizationDashboard() {
   return (
     <div className="organization-dashboard">
       <section className="organization-dashboard__header">
-        <h2>Nouvel evenement</h2>
-        <p>Ajoutez un evenement public rattache a votre organisation.</p>
+        <h2>Nouvel événement</h2>
+        <p>Ajoutez un événement public rattaché à votre organisation.</p>
       </section>
 
       <section
@@ -187,7 +187,7 @@ export default function OrganizationDashboard() {
                 label="Organisation"
                 htmlFor="event-organization"
                 error={
-                  selectedOrganization ? undefined : "Selectionnez une organisation"
+                  selectedOrganization ? undefined : "Sélectionnez une organisation"
                 }
               >
                 <Select
@@ -351,7 +351,7 @@ export default function OrganizationDashboard() {
           {serverError && <ErrorMessage message={serverError} />}
 
           <Button type="submit" loading={isSubmitting} loadingLabel="Envoi...">
-            Ajouter l'evenement
+            Ajouter l'événement
           </Button>
         </form>
       </section>

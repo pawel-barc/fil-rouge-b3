@@ -72,7 +72,7 @@ export default function RegisterForm({
           return;
         }
 
-        toast.success("Compte cree avec succes");
+        toast.success("Compte créé avec succès");
         onSuccess?.();
         return;
       }
@@ -89,7 +89,7 @@ export default function RegisterForm({
       }
 
       login(result.data);
-      toast.success("Compte cree avec succes");
+      toast.success("Compte créé avec succès");
       navigate(ROUTES.PUBLIC.HOME, { replace: true });
     } catch {
       setServerError(
@@ -174,7 +174,7 @@ export default function RegisterForm({
 
         <div className="admin-actions">
           <Button type="submit" loading={loading}>
-            {submitLabel ?? "Creer un compte utilisateur"}
+            {submitLabel ?? "Créer un compte utilisateur"}
           </Button>
           {onCancel && (
             <Button

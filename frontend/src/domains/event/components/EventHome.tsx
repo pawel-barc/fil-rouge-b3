@@ -1253,8 +1253,8 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
             <ReportEventButton event={event} />
             {currentUser && (
               <Button
-                aria-label="Partager l'evenement"
-                title="Partager l'evenement"
+                aria-label="Partager l'événement"
+                title="Partager l'événement"
                 className="event-card__share"
                 icon={<Share2 size={16} aria-hidden="true" />}
                 iconOnly
@@ -1539,8 +1539,8 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
                 className="input"
                 type="search"
                 value={search}
-                placeholder="Rechercher un evenement..."
-                aria-label="Rechercher un evenement"
+                placeholder="Rechercher un événement..."
+                aria-label="Rechercher un événement"
                 onMouseDown={(event) => {
                   if (!isDesktopSidebarOpen) {
                     event.preventDefault();
@@ -1584,7 +1584,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
             >
               <Search size={16} aria-hidden="true" />
               <span className="events-desktop-search__placeholder">
-                Rechercher un evenement...
+                Rechercher un événement...
               </span>
             </button>
           )}
@@ -1607,7 +1607,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
           <div className="events-sidebar-filters" aria-labelledby="events-list-title">
             <div className="events-sidebar-header events-sidebar-header--filters">
               <Button
-                aria-label="Retour a la liste des evenements"
+                aria-label="Retour à la liste des événements"
                 icon={<ArrowLeft size={18} aria-hidden="true" />}
                 iconOnly
                 size="icon"
@@ -1622,7 +1622,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
                 <h2 id="events-list-title">Filtres & Tri</h2>
               </div>
               <Button
-                aria-label="Fermer la sidebar des evenements"
+                aria-label="Fermer la sidebar des événements"
                 icon={<X size={18} aria-hidden="true" />}
                 iconOnly
                 size="icon"
@@ -1662,8 +1662,8 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
                 className="input"
                 type="search"
                 value={search}
-                placeholder="Rechercher un evenement..."
-                aria-label="Rechercher un evenement"
+                placeholder="Rechercher un événement..."
+                aria-label="Rechercher un événement"
                 onFocus={() => setIsSearchFocused(true)}
                 onBlur={() => setIsSearchFocused(false)}
                 onChange={(event) => setSearch(event.target.value)}
@@ -1690,7 +1690,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
               )}
             </form>
             <Button
-              aria-label="Fermer la sidebar des evenements"
+              aria-label="Fermer la sidebar des événements"
               className="events-sidebar-tools__close"
               icon={<X size={18} aria-hidden="true" />}
               iconOnly
@@ -1712,7 +1712,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
           </div>
           {selectedEvent && (
             <Button
-              aria-label="Fermer la sidebar des evenements"
+              aria-label="Fermer la sidebar des événements"
               icon={<X size={18} aria-hidden="true" />}
               iconOnly
               size="icon"
@@ -1762,8 +1762,8 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
                 <ReportEventButton event={selectedEvent} />
                 <FavoriteButton event={selectedEvent} />
                 <Button
-                  aria-label="Partager l'evenement"
-                  title="Partager l'evenement"
+                  aria-label="Partager l'événement"
+                  title="Partager l'événement"
                   className="event-mobile-detail__share"
                   icon={<Share2 size={18} aria-hidden="true" />}
                   iconOnly
@@ -1904,7 +1904,7 @@ export default function Home({ isInitialDataReady = true }: EventHomeProps) {
             >
               <div className="events-status-section__collapsible-inner">
             {displayedEvents.length === 0 ? (
-              <EmptyState message="Aucun événement ne correspond à vos preferences." />
+              <EmptyState message="Aucun événement ne correspond à vos préférences." />
             ) : (
               <div className={getEventsGridClassName(displayedEvents)}>
                 {displayedEvents.map(renderEventCard)}

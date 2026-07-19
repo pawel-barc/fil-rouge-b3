@@ -18,10 +18,10 @@ export default function HeaderOrganization() {
         <NavLink to={ROUTES.USER.PROFILE}>Profil</NavLink>
         <NavLink to={ROUTES.USER.PARAMETERS}>Parametres</NavLink>
         <NavLink to={ROUTES.USER.ORGANIZATIONS}>Mes organisations</NavLink>
-        <NavLink to={ROUTES.USER.EVENTS}>Mes evenements</NavLink>
+        <NavLink to={ROUTES.USER.EVENTS}>Mes événements</NavLink>
         {canManageEvents && (
           <FormModalNavLink to={ROUTES.ORGANIZATION.CREATE}>
-            Nouvel evenement
+            Nouvel événement
           </FormModalNavLink>
         )}
         <NotificationCenter />
