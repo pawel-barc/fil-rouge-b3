@@ -195,7 +195,7 @@ func (r *Repository) Create(ctx context.Context, user *User) (int64, error) {
 	if err := replaceEventPreferencesInTx(ctx, tx, profileID, user.PreferenceSlugs); err != nil {
 		return 0, err
 	}
-	if err := createAccountNotification(ctx, tx, id, "welcome_email", "Bienvenue sur Mappening", "Votre compte Mappening est pret.", "/account"); err != nil {
+	if err := createAccountNotification(ctx, tx, id, "welcome_email", "Bienvenue sur Mappening", "Votre compte Mappening est prêt.", "/account"); err != nil {
 		return 0, err
 	}
 
@@ -288,7 +288,7 @@ func (r *Repository) CreateOrganization(ctx context.Context, registration Organi
 	if err != nil {
 		return nil, 0, fmt.Errorf("create organizer: %w", err)
 	}
-	if err := createAccountNotification(ctx, tx, accountID, "welcome_email", "Bienvenue sur Mappening", "Votre espace organisation est pret. Il sera visible apres validation.", "/organization"); err != nil {
+	if err := createAccountNotification(ctx, tx, accountID, "welcome_email", "Bienvenue sur Mappening", "Votre espace organisation est prêt. Il sera visible après validation.", "/organization"); err != nil {
 		return nil, 0, err
 	}
 
@@ -383,7 +383,7 @@ func (r *Repository) UpdatePassword(ctx context.Context, userID int64, passwordH
 		return ErrUserNotFound
 	}
 
-	if err := createAccountNotification(ctx, r.db, userID, "password_changed", "Mot de passe modifie", "Votre mot de passe vient d'etre modifie.", "/account/profile/change-password"); err != nil {
+	if err := createAccountNotification(ctx, r.db, userID, "password_changed", "Mot de passe modifié", "Votre mot de passe vient d'être modifié.", "/account/profile/change-password"); err != nil {
 		return err
 	}
 
@@ -428,7 +428,7 @@ func (r *Repository) CreatePasswordResetToken(ctx context.Context, email string,
 	`, tokenHash, user.ID, expiresAt); err != nil {
 		return false, fmt.Errorf("create password reset token: %w", err)
 	}
-	if err := createAccountNotification(ctx, r.db, user.ID, "password_reset_requested", "Reinitialisation demandee", "Un lien de reinitialisation de mot de passe vient d'etre envoye.", "/account/profile/change-password"); err != nil {
+	if err := createAccountNotification(ctx, r.db, user.ID, "password_reset_requested", "Réinitialisation demandée", "Un lien de réinitialisation de mot de passe vient d'être envoyé.", "/account/profile/change-password"); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -482,7 +482,7 @@ func (r *Repository) ResetPasswordWithToken(ctx context.Context, token string, p
 		return fmt.Errorf("consume password reset token: %w", err)
 	}
 
-	if err := createAccountNotification(ctx, tx, accountID, "password_changed", "Mot de passe modifie", "Votre mot de passe vient d'etre modifie.", "/account/profile/change-password"); err != nil {
+	if err := createAccountNotification(ctx, tx, accountID, "password_changed", "Mot de passe modifié", "Votre mot de passe vient d'être modifié.", "/account/profile/change-password"); err != nil {
 		return err
 	}
 

@@ -77,7 +77,9 @@ func newRouter(
 ) nethttp.Handler {
 	r := chi.NewRouter()
 
-	loginRateLimiter := middleware.NewDBRateLimiter(db, 30, time.Minute, cfg.TrustedProxyCIDRs...)
+	loginRateLimiter := middleware.NewDBRateLimiter(db, 20, time.Minute, cfg.TrustedProxyCIDRs...)
+	registerRateLimiter := middleware.NewDBRateLimiter(db, 10, time.Minute, cfg.TrustedProxyCIDRs...)
+	passwordRateLimiter := middleware.NewDBRateLimiter(db, 5, time.Minute, cfg.TrustedProxyCIDRs...)
 	loginAccountRateLimiter := middleware.NewDBRateLimiterWithKeyBuilder(
 		db,
 		5,
@@ -90,7 +92,7 @@ func newRouter(
 		15*time.Minute,
 		middleware.LoginEmailOnlyRateLimitKey(8<<10),
 	)
-	refreshRateLimiter := middleware.NewDBRateLimiter(db, 30, time.Minute, cfg.TrustedProxyCIDRs...)
+	refreshRateLimiter := middleware.NewDBRateLimiter(db, 20, time.Minute, cfg.TrustedProxyCIDRs...)
 	adminWriteRateLimiter := middleware.NewDBRateLimiter(db, 60, time.Minute, cfg.TrustedProxyCIDRs...)
 	geocodingRateLimiter := middleware.NewDBRateLimiter(db, 60, time.Minute, cfg.TrustedProxyCIDRs...)
 
@@ -209,10 +211,10 @@ func newRouter(
 		loginGlobalAccountRateLimiter.Handler(),
 	).Post("/api/auth/login", authHandler.Login)
 	r.With(middleware.NoStore(), loginRateLimiter.Handler()).Post("/api/auth/login/dev", authHandler.DevLogin)
-	r.With(middleware.NoStore(), loginRateLimiter.Handler()).Post("/api/auth/register/user", authHandler.RegisterUser)
-	r.With(middleware.NoStore(), loginRateLimiter.Handler()).Post("/api/auth/register/organization", authHandler.RegisterOrganization)
-	r.With(middleware.NoStore(), loginRateLimiter.Handler()).Post("/api/auth/password/forgot", authHandler.ForgotPassword)
-	r.With(middleware.NoStore(), loginRateLimiter.Handler()).Post("/api/auth/password/reset", authHandler.ResetPassword)
+	r.With(middleware.NoStore(), registerRateLimiter.Handler()).Post("/api/auth/register/user", authHandler.RegisterUser)
+	r.With(middleware.NoStore(), registerRateLimiter.Handler()).Post("/api/auth/register/organization", authHandler.RegisterOrganization)
+	r.With(middleware.NoStore(), passwordRateLimiter.Handler()).Post("/api/auth/password/forgot", authHandler.ForgotPassword)
+	r.With(middleware.NoStore(), passwordRateLimiter.Handler()).Post("/api/auth/password/reset", authHandler.ResetPassword)
 	r.With(middleware.NoStore(), refreshRateLimiter.Handler()).Post("/api/auth/refresh", authHandler.Refresh)
 
 	r.Group(func(pr chi.Router) {

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"mappening/internal/users"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,7 +14,9 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
+	"mappening/internal/contracts"
 	"mappening/internal/http/middleware"
+	"mappening/internal/users"
 )
 
 type fakeAuthUserRepo struct {
@@ -28,12 +30,48 @@ func (f fakeAuthUserRepo) GetByEmail(_ context.Context, email string) (*users.Us
 	return f.user, nil
 }
 
+func (f fakeAuthUserRepo) Login(_ context.Context, email, password string) (*users.User, error) {
+	user, err := f.GetByEmail(context.Background(), email)
+	if err != nil {
+		return nil, err
+	}
+	if !isUserAllowedToAuthenticate(user) {
+		return nil, ErrUserInactive
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		return nil, ErrInvalidCredentials
+	}
+	return user, nil
+}
+
 type fakeOrganizationRegistrationRepo struct {
 	fakeAuthUserRepo
 	called bool
 }
 
 func (f *fakeOrganizationRegistrationRepo) CreateOrganization(_ context.Context, _ users.OrganizationRegistration) (*users.User, int64, error) {
+	f.called = true
+	return &users.User{
+		ID:          42,
+		AccountID:   42,
+		ProfileID:   7,
+		Email:       "org@mappening.local",
+		FirstName:   "Org Owner",
+		Role:        "organization",
+		AccountType: "organization",
+		IsActive:    true,
+	}, 12, nil
+}
+
+func (f *fakeOrganizationRegistrationRepo) RegisterOrganization(
+	_ context.Context,
+	req contracts.RegisterOrganizationRequestDTO,
+	_ normalizedOrganizationAddress,
+) (*users.User, int64, error) {
+	if err := validateOrganizationRegistrationFields(req); err != nil {
+		return nil, 0, fmt.Errorf("%w: %v", ErrInvalidRegistration, err)
+	}
+
 	f.called = true
 	return &users.User{
 		ID:          42,
@@ -212,7 +250,7 @@ func TestAuthHandler_RegisterOrganization_RejectsTooLongLogo(t *testing.T) {
 	if err := json.NewDecoder(rec.Result().Body).Decode(&payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if payload["error"] != "logo is too long" {
+	if payload["error"] != "Le logo est trop long" {
 		t.Fatalf("expected logo length error, got %+v", payload)
 	}
 }
@@ -284,7 +322,7 @@ func TestAuthHandler_Login_InactiveUser_StillReturnsGenericUnauthorized(t *testi
 		t.Fatalf("decode response: %v", err)
 	}
 
-	if payload["error"] != "invalid credentials" {
+	if payload["error"] != "Email ou mot de passe incorrect" {
 		t.Fatalf("expected generic invalid credentials error, got %+v", payload)
 	}
 }
@@ -327,7 +365,7 @@ func TestAuthHandler_Login_SuspendedUser_StillReturnsGenericUnauthorized(t *test
 		t.Fatalf("decode response: %v", err)
 	}
 
-	if payload["error"] != "invalid credentials" {
+	if payload["error"] != "Email ou mot de passe incorrect" {
 		t.Fatalf("expected generic invalid credentials error, got %+v", payload)
 	}
 }

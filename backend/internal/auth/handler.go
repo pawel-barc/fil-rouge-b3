@@ -29,6 +29,7 @@ import (
 	"mappening/internal/users"
 )
 
+// Handler regroupe les dependances HTTP necessaires aux endpoints d'authentification.
 type Handler struct {
 	Secret           string
 	Issuer           string
@@ -50,36 +51,75 @@ type Handler struct {
 
 const dummyPasswordHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
 
+// authUserReader definit la lecture d'un utilisateur par email.
 type authUserReader interface {
 	GetByEmail(ctx context.Context, email string) (*users.User, error)
 }
 
+// authUserCreator definit la creation d'un compte utilisateur.
 type authUserCreator interface {
 	Create(ctx context.Context, user *users.User) (int64, error)
 }
 
+// authUserAuthenticator definit la verification des identifiants utilisateur.
+type authUserAuthenticator interface {
+	Login(ctx context.Context, email, password string) (*users.User, error)
+}
+
+// authOrganizationCreator definit la creation d'un compte organisation.
 type authOrganizationCreator interface {
 	CreateOrganization(ctx context.Context, registration users.OrganizationRegistration) (*users.User, int64, error)
 }
 
+// authUserRegistrar definit le parcours complet d'inscription utilisateur.
+type authUserRegistrar interface {
+	RegisterUser(ctx context.Context, req contracts.RegisterUserRequestDTO) (*users.User, error)
+}
+
+// authOrganizationRegistrar definit le parcours complet d'inscription organisation.
+type authOrganizationRegistrar interface {
+	RegisterOrganization(ctx context.Context, req contracts.RegisterOrganizationRequestDTO, normalizedAddress normalizedOrganizationAddress) (*users.User, int64, error)
+}
+
+// authUserPasswordUpdater definit la mise a jour du mot de passe.
 type authUserPasswordUpdater interface {
 	UpdatePassword(ctx context.Context, userID int64, passwordHash string) error
 }
 
+// authUserProfileUpdater definit la mise a jour directe du profil utilisateur.
 type authUserProfileUpdater interface {
 	UpdateProfile(ctx context.Context, accountID int64, email string, username string) (*users.User, error)
 }
 
+// authPasswordResetter definit les operations bas niveau de reset de mot de passe.
 type authPasswordResetter interface {
 	CreatePasswordResetToken(ctx context.Context, email string, token string, expiresAt time.Time) (bool, error)
 	ResetPasswordWithToken(ctx context.Context, token string, passwordHash string) error
 }
 
+// authProfileRequestUpdater definit la mise a jour de profil depuis un DTO HTTP.
+type authProfileRequestUpdater interface {
+	UpdateProfileFromRequest(ctx context.Context, accountID int64, req contracts.UpdateProfileRequestDTO) (*users.User, error)
+}
+
+// authPasswordResetService definit le parcours applicatif de reset de mot de passe.
+type authPasswordResetService interface {
+	RequestPasswordReset(ctx context.Context, req contracts.ForgotPasswordRequestDTO) (*PasswordResetRequest, error)
+	ResetPassword(ctx context.Context, req contracts.ResetPasswordRequestDTO) error
+}
+
+// authPasswordChanger definit le changement de mot de passe d'un utilisateur connecte.
+type authPasswordChanger interface {
+	ChangePassword(ctx context.Context, email string, req contracts.ChangePasswordRequestDTO) (*users.User, error)
+}
+
+// authUserPreferencesService definit la lecture et le remplacement des preferences.
 type authUserPreferencesService interface {
 	ListEventPreferences(ctx context.Context, accountID int64) ([]users.EventPreference, error)
 	ReplaceEventPreferences(ctx context.Context, accountID int64, categorySlugs []string) ([]users.EventPreference, error)
 }
 
+// authUserNotificationsService definit les operations de notifications utilisateur.
 type authUserNotificationsService interface {
 	ListNotificationTypes(ctx context.Context) ([]users.NotificationType, error)
 	ListNotifications(ctx context.Context, accountID int64) ([]users.Notification, error)
@@ -87,13 +127,16 @@ type authUserNotificationsService interface {
 	MarkAllNotificationsRead(ctx context.Context, accountID int64) error
 }
 
+// authUserDeleter definit la desactivation ou suppression d'un compte.
 type authUserDeleter interface {
 	Deactivate(ctx context.Context, userID int64) error
 	Delete(ctx context.Context, userID int64) error
 }
 
+// Login authentifie un utilisateur et demarre une session avec cookies.
 func (h Handler) Login(w http.ResponseWriter, r *http.Request) {
-	if h.Service == nil || h.Store == nil {
+	authenticator, ok := h.Service.(authUserAuthenticator)
+	if h.Service == nil || h.Store == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
 	}
@@ -130,10 +173,18 @@ func (h Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.Service.GetByEmail(r.Context(), req.Email)
+	user, err := authenticator.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		if errors.Is(err, users.ErrUserNotFound) {
 			_ = bcrypt.CompareHashAndPassword([]byte(dummyPasswordHash), []byte(req.Password))
+			log.Warn().
+				Str("email", req.Email).
+				Msg("login failed: invalid credentials")
+
+			httpx.WriteJSONError(w, http.StatusUnauthorized, "invalid credentials")
+			return
+		}
+		if errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrUserInactive) {
 			log.Warn().
 				Str("email", req.Email).
 				Msg("login failed: invalid credentials")
@@ -150,26 +201,6 @@ func (h Handler) Login(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-
-	if !isUserAllowedToAuthenticate(user) {
-		_ = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
-		log.Warn().
-			Str("email", user.Email).
-			Msg("login failed: invalid credentials")
-
-		httpx.WriteJSONError(w, http.StatusUnauthorized, "invalid credentials")
-		return
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		log.Warn().
-			Str("email", user.Email).
-			Msg("login failed: invalid credentials")
-
-		httpx.WriteJSONError(w, http.StatusUnauthorized, "invalid credentials")
-		return
-	}
-
 	csrf, ok := h.startSession(w, user, "login failed")
 	if !ok {
 		return
@@ -183,8 +214,9 @@ func (h Handler) Login(w http.ResponseWriter, r *http.Request) {
 	writeLoginResponse(w, user, csrf)
 }
 
+// RegisterUser cree un compte utilisateur puis ouvre une session.
 func (h Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
-	creator, ok := h.Service.(authUserCreator)
+	registrar, ok := h.Service.(authUserRegistrar)
 	if h.Service == nil || h.Store == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
@@ -205,35 +237,11 @@ func (h Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	email := normalizeEmail(firstNonBlank(req.LoginEmail, req.Email))
-	username := strings.TrimSpace(req.Username)
-	if err := validatePublicRegistration(email, username, req.Password); err != nil {
-		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	user, err := registrar.RegisterUser(r.Context(), req)
 	if err != nil {
-		log.Error().Err(err).Msg("register user: hash password failed")
-		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
+		writeAuthServiceError(w, err)
 		return
 	}
-
-	user := &users.User{
-		Email:           email,
-		PasswordHash:    string(hash),
-		FirstName:       username,
-		Role:            "user",
-		AccountType:     "user",
-		IsActive:        true,
-		PreferenceSlugs: normalizeSlugs(req.CategorySlugs),
-	}
-	id, err := creator.Create(r.Context(), user)
-	if err != nil {
-		writeAuthMutationError(w, err)
-		return
-	}
-	user.ID = id
 
 	csrf, ok := h.startSession(w, user, "register user failed")
 	if !ok {
@@ -248,8 +256,9 @@ func (h Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	h.sendWelcomeEmail(r.Context(), user.Email, user.FirstName, false)
 }
 
+// RegisterOrganization cree un compte organisation puis ouvre une session.
 func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
-	creator, ok := h.Service.(authOrganizationCreator)
+	registrar, ok := h.Service.(authOrganizationRegistrar)
 	if h.Service == nil || h.Store == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
@@ -270,63 +279,15 @@ func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	email := normalizeEmail(firstNonBlank(req.LoginEmail, req.Email))
-	memberName := strings.TrimSpace(req.MemberName)
-	if err := validatePublicRegistration(email, memberName, req.Password); err != nil {
-		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if strings.TrimSpace(req.Name) == "" || strings.TrimSpace(req.ContactEmail) == "" ||
-		strings.TrimSpace(req.Address) == "" || strings.TrimSpace(req.City) == "" ||
-		strings.TrimSpace(req.PostalCode) == "" {
-		httpx.WriteJSONError(w, http.StatusBadRequest, "organization fields are required")
-		return
-	}
-	if err := validateEmail(normalizeEmail(req.ContactEmail)); err != nil {
-		httpx.WriteJSONError(w, http.StatusBadRequest, "contact email is invalid")
-		return
-	}
-	if err := validateOrganizationRegistrationFields(req); err != nil {
-		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
 	normalizedAddress, err := h.normalizeOrganizationAddress(r, req)
 	if err != nil {
 		writeGeocodingError(w, err)
 		return
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	user, organizationID, err := registrar.RegisterOrganization(r.Context(), req, normalizedAddress)
 	if err != nil {
-		log.Error().Err(err).Msg("register organization: hash password failed")
-		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-
-	user, organizationID, err := creator.CreateOrganization(r.Context(), users.OrganizationRegistration{
-		Email:              email,
-		PasswordHash:       string(hash),
-		MemberName:         memberName,
-		MemberJobRole:      strings.TrimSpace(req.MemberJobRole),
-		Name:               strings.TrimSpace(req.Name),
-		ContactEmail:       normalizeEmail(req.ContactEmail),
-		Description:        strings.TrimSpace(req.Description),
-		Website:            strings.TrimSpace(req.Website),
-		Latitude:           normalizedAddress.latitude,
-		Longitude:          normalizedAddress.longitude,
-		Address:            normalizedAddress.address,
-		City:               normalizedAddress.city,
-		PostalCode:         normalizedAddress.postalCode,
-		Logo:               strings.TrimSpace(req.Logo),
-		ContactPhoneNumber: strings.TrimSpace(req.ContactPhoneNumber),
-		SIRET:              strings.TrimSpace(req.SIRET),
-		CategorySlugs:      normalizeSlugs(req.CategorySlugs),
-		IsVerified:         false,
-		IsActive:           false,
-	})
-	if err != nil {
-		writeAuthMutationError(w, err)
+		writeAuthServiceError(w, err)
 		return
 	}
 
@@ -345,6 +306,7 @@ func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
 	h.sendWelcomeEmail(r.Context(), user.Email, user.FirstName, true)
 }
 
+// normalizedOrganizationAddress contient l'adresse organisation normalisee.
 type normalizedOrganizationAddress struct {
 	address    string
 	city       string
@@ -353,6 +315,7 @@ type normalizedOrganizationAddress struct {
 	longitude  *float64
 }
 
+// normalizeOrganizationAddress enrichit l'adresse organisation avec le geocodage.
 func (h Handler) normalizeOrganizationAddress(
 	r *http.Request,
 	req contracts.RegisterOrganizationRequestDTO,
@@ -384,6 +347,7 @@ func (h Handler) normalizeOrganizationAddress(
 	}, nil
 }
 
+// DevLogin connecte rapidement le compte de developpement autorise.
 func (h Handler) DevLogin(w http.ResponseWriter, r *http.Request) {
 	if !h.DevLoginEnabled || !config.IsDevLikeEnv(h.Env) {
 		http.NotFound(w, r)
@@ -449,6 +413,7 @@ func (h Handler) DevLogin(w http.ResponseWriter, r *http.Request) {
 	writeLoginResponse(w, user, csrf)
 }
 
+// Refresh renouvelle les tokens depuis le refresh token valide.
 func (h Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	if h.Service == nil || h.Store == nil {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
@@ -611,6 +576,7 @@ func (h Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true, "csrf_token": csrf})
 }
 
+// Logout supprime le refresh token et nettoie les cookies d'authentification.
 func (h Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	if h.Store == nil {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
@@ -640,6 +606,7 @@ func (h Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// Me retourne les informations du compte actuellement authentifie.
 func (h Handler) Me(w http.ResponseWriter, r *http.Request) {
 	if h.Service == nil {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
@@ -686,8 +653,9 @@ func (h Handler) Me(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, toAuthUserDTO(user))
 }
 
+// UpdateProfile met a jour l'email et le nom utilisateur du compte courant.
 func (h Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
-	updater, ok := h.Service.(authUserProfileUpdater)
+	updater, ok := h.Service.(authProfileRequestUpdater)
 	if h.Service == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
@@ -705,24 +673,9 @@ func (h Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	email := normalizeEmail(firstNonBlank(req.LoginEmail, req.Email))
-	username := strings.TrimSpace(req.Username)
-	if err := validateEmail(email); err != nil {
-		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if username == "" {
-		httpx.WriteJSONError(w, http.StatusBadRequest, "username is required")
-		return
-	}
-	if utf8.RuneCountInString(username) > 100 {
-		httpx.WriteJSONError(w, http.StatusBadRequest, "username is too long")
-		return
-	}
-
-	user, err := updater.UpdateProfile(r.Context(), claimsUser.UserID, email, username)
+	user, err := updater.UpdateProfileFromRequest(r.Context(), claimsUser.UserID, req)
 	if err != nil {
-		writeAuthMutationError(w, err)
+		writeAuthServiceError(w, err)
 		return
 	}
 	if h.Store != nil && !strings.EqualFold(claimsUser.Email, user.Email) {
@@ -732,8 +685,9 @@ func (h Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, toAuthUserDTO(user))
 }
 
+// ForgotPassword genere une demande de reinitialisation de mot de passe.
 func (h Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
-	resetter, ok := h.Service.(authPasswordResetter)
+	resetter, ok := h.Service.(authPasswordResetService)
 	if h.Service == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
@@ -752,30 +706,17 @@ func (h Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	email := normalizeEmail(firstNonBlank(req.LoginEmail, req.Email))
-	if err := validateEmail(email); err != nil {
-		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
-		return
-	}
 
-	token, err := randomToken()
+	resetRequest, err := resetter.RequestPasswordReset(r.Context(), req)
 	if err != nil {
-		log.Error().Err(err).Msg("forgot password: token generation failed")
-		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-
-	exists, err := resetter.CreatePasswordResetToken(r.Context(), email, token, time.Now().UTC().Add(30*time.Minute))
-	if err != nil {
-		log.Error().Err(err).Msg("forgot password: create token failed")
-		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
+		writeAuthServiceError(w, err)
 		return
 	}
 
 	message := "Si un compte actif existe avec cet email, un lien de reinitialisation a ete envoye."
 	response := contracts.ForgotPasswordResponseDTO{OK: true, Message: message}
-	if exists {
-		resetPath := "/reset-password/" + token
+	if resetRequest.Exists {
+		resetPath := "/reset-password/" + resetRequest.Token
 		if h.FrontendURL != "" {
 			if base, err := url.Parse(h.FrontendURL); err == nil {
 				base.Path = resetPath
@@ -789,13 +730,14 @@ func (h Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 			response.ResetURL = resetPath
 			response.ResetLink = resetPath
 		}
-		h.sendPasswordResetEmail(r.Context(), email, response.ResetURL)
+		h.sendPasswordResetEmail(r.Context(), resetRequest.Email, response.ResetURL)
 	}
 	httpx.WriteJSON(w, http.StatusOK, response)
 }
 
+// ResetPassword applique un nouveau mot de passe depuis un token valide.
 func (h Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
-	resetter, ok := h.Service.(authPasswordResetter)
+	resetter, ok := h.Service.(authPasswordResetService)
 	if h.Service == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
@@ -814,35 +756,19 @@ func (h Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	token := strings.TrimSpace(req.Token)
-	password := firstNonBlank(req.NewPassword, req.Password)
-	if token == "" {
-		httpx.WriteJSONError(w, http.StatusBadRequest, "token is required")
-		return
-	}
-	if err := validatePassword(password); err != nil {
-		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		log.Error().Err(err).Msg("reset password: hash password failed")
-		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-	if err := resetter.ResetPasswordWithToken(r.Context(), token, string(hash)); err != nil {
+	if err := resetter.ResetPassword(r.Context(), req); err != nil {
 		if errors.Is(err, users.ErrUserNotFound) {
 			httpx.WriteJSONError(w, http.StatusBadRequest, "invalid or expired reset token")
 			return
 		}
-		writeAuthMutationError(w, err)
+		writeAuthServiceError(w, err)
 		return
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// sendPasswordResetEmail prepare l'email de reinitialisation de mot de passe.
 func (h Handler) sendPasswordResetEmail(ctx context.Context, email string, resetURL string) {
 	h.sendMail(ctx, mailer.Message{
 		To:      email,
@@ -859,6 +785,7 @@ func (h Handler) sendPasswordResetEmail(ctx context.Context, email string, reset
 	}, "password reset")
 }
 
+// sendWelcomeEmail prepare l'email de bienvenue apres inscription.
 func (h Handler) sendWelcomeEmail(ctx context.Context, email string, name string, organization bool) {
 	greeting := "Bonjour,"
 	if trimmedName := strings.TrimSpace(name); trimmedName != "" {
@@ -881,6 +808,7 @@ func (h Handler) sendWelcomeEmail(ctx context.Context, email string, name string
 	}, "welcome")
 }
 
+// sendMail envoie un email en arriere-plan si un mailer est configure.
 func (h Handler) sendMail(_ context.Context, message mailer.Message, purpose string) {
 	if h.Mailer == nil {
 		return
@@ -900,6 +828,7 @@ func (h Handler) sendMail(_ context.Context, message mailer.Message, purpose str
 	}()
 }
 
+// ListPreferences retourne les preferences evenementielles du compte courant.
 func (h Handler) ListPreferences(w http.ResponseWriter, r *http.Request) {
 	service, ok := h.Service.(authUserPreferencesService)
 	if h.Service == nil || !ok {
@@ -919,6 +848,7 @@ func (h Handler) ListPreferences(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, preferences)
 }
 
+// ReplacePreferences remplace les preferences evenementielles du compte courant.
 func (h Handler) ReplacePreferences(w http.ResponseWriter, r *http.Request) {
 	service, ok := h.Service.(authUserPreferencesService)
 	if h.Service == nil || !ok {
@@ -947,6 +877,7 @@ func (h Handler) ReplacePreferences(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, preferences)
 }
 
+// ListNotifications retourne les notifications du compte courant.
 func (h Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
 	service, ok := h.Service.(authUserNotificationsService)
 	if h.Service == nil || !ok {
@@ -966,6 +897,7 @@ func (h Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, notifications)
 }
 
+// ListNotificationTypes retourne les types de notifications disponibles.
 func (h Handler) ListNotificationTypes(w http.ResponseWriter, r *http.Request) {
 	service, ok := h.Service.(authUserNotificationsService)
 	if h.Service == nil || !ok {
@@ -980,6 +912,7 @@ func (h Handler) ListNotificationTypes(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, types)
 }
 
+// MarkNotificationRead marque une notification comme lue.
 func (h Handler) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
 	service, ok := h.Service.(authUserNotificationsService)
 	if h.Service == nil || !ok {
@@ -1004,6 +937,7 @@ func (h Handler) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, notification)
 }
 
+// MarkAllNotificationsRead marque toutes les notifications comme lues.
 func (h Handler) MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request) {
 	service, ok := h.Service.(authUserNotificationsService)
 	if h.Service == nil || !ok {
@@ -1022,8 +956,9 @@ func (h Handler) MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// ChangePassword change le mot de passe du compte courant et ferme la session.
 func (h Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
-	updater, ok := h.Service.(authUserPasswordUpdater)
+	changer, ok := h.Service.(authPasswordChanger)
 	if h.Service == nil || !ok {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "auth service not configured")
 		return
@@ -1041,39 +976,17 @@ func (h Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	currentPassword := firstNonBlank(req.CurrentPassword, req.OldPassword)
-	if strings.TrimSpace(currentPassword) == "" {
-		httpx.WriteJSONError(w, http.StatusBadRequest, "current password is required")
-		return
-	}
-	if err := validatePassword(req.NewPassword); err != nil {
-		httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	user, err := h.Service.GetByEmail(r.Context(), claimsUser.Email)
+	user, err := changer.ChangePassword(r.Context(), claimsUser.Email, req)
 	if err != nil {
 		if errors.Is(err, users.ErrUserNotFound) {
 			httpx.WriteJSONError(w, http.StatusUnauthorized, "user not found")
 			return
 		}
-		log.Error().Err(err).Msg("change password: get user failed")
-		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)); err != nil {
-		httpx.WriteJSONError(w, http.StatusUnauthorized, "invalid password")
-		return
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
-	if err != nil {
-		log.Error().Err(err).Msg("change password: hash password failed")
-		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-	if err := updater.UpdatePassword(r.Context(), user.ID, string(hash)); err != nil {
-		writeAuthMutationError(w, err)
+		if errors.Is(err, ErrInvalidCredentials) {
+			httpx.WriteJSONError(w, http.StatusUnauthorized, "invalid password")
+			return
+		}
+		writeAuthServiceError(w, err)
 		return
 	}
 	if h.Store != nil {
@@ -1084,6 +997,7 @@ func (h Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// CheckRole verifie si le role courant correspond au role demande.
 func (h Handler) CheckRole(w http.ResponseWriter, r *http.Request) {
 	claimsUser := middleware.GetUser(r)
 	if claimsUser == nil {
@@ -1100,6 +1014,7 @@ func (h Handler) CheckRole(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// CheckAccountType verifie si le type de compte courant correspond au type demande.
 func (h Handler) CheckAccountType(w http.ResponseWriter, r *http.Request) {
 	claimsUser := middleware.GetUser(r)
 	if claimsUser == nil {
@@ -1127,14 +1042,17 @@ func (h Handler) CheckAccountType(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// DeactivateAccount desactive le compte courant.
 func (h Handler) DeactivateAccount(w http.ResponseWriter, r *http.Request) {
 	h.closeOwnAccount(w, r, false)
 }
 
+// DeleteAccount supprime le compte courant.
 func (h Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	h.closeOwnAccount(w, r, true)
 }
 
+// closeOwnAccount factorise la fermeture logique ou definitive du compte courant.
 func (h Handler) closeOwnAccount(w http.ResponseWriter, r *http.Request, delete bool) {
 	deleter, ok := h.Service.(authUserDeleter)
 	if h.Service == nil || !ok {
@@ -1170,6 +1088,7 @@ func (h Handler) closeOwnAccount(w http.ResponseWriter, r *http.Request, delete 
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// issueTokens genere les access et refresh tokens pour un utilisateur.
 func (h Handler) issueTokens(user *users.User) (access string, accessExp time.Time, refresh string, refreshExp time.Time, refreshJTI string, err error) {
 	now := time.Now()
 
@@ -1217,6 +1136,7 @@ func (h Handler) issueTokens(user *users.User) (access string, accessExp time.Ti
 	return
 }
 
+// startSession persiste le refresh token et pose les cookies de session.
 func (h Handler) startSession(w http.ResponseWriter, user *users.User, failurePrefix string) (string, bool) {
 	access, accessExp, refresh, refreshExp, refreshJTI, err := h.issueTokens(user)
 	if err != nil {
@@ -1256,6 +1176,7 @@ func (h Handler) startSession(w http.ResponseWriter, user *users.User, failurePr
 	return csrf, true
 }
 
+// randomHex genere une chaine aleatoire encodee en hexadecimal.
 func randomHex(n int) (string, error) {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
@@ -1264,6 +1185,7 @@ func randomHex(n int) (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+// userSessionRevision convertit la date de mise a jour en revision de session.
 func userSessionRevision(updatedAt time.Time) int64 {
 	if updatedAt.IsZero() {
 		return 0
@@ -1272,6 +1194,7 @@ func userSessionRevision(updatedAt time.Time) int64 {
 	return updatedAt.UTC().UnixMicro()
 }
 
+// hasAudience verifie qu'un token contient l'audience attendue.
 func hasAudience(audiences []string, expected string) bool {
 	for _, audience := range audiences {
 		if audience == expected {
@@ -1282,6 +1205,7 @@ func hasAudience(audiences []string, expected string) bool {
 	return false
 }
 
+// toAuthUserDTO transforme un utilisateur domaine en reponse API.
 func toAuthUserDTO(user *users.User) contracts.AuthUserDTO {
 	accountID := user.ID
 	if user.AccountID != 0 {
@@ -1325,6 +1249,7 @@ func toAuthUserDTO(user *users.User) contracts.AuthUserDTO {
 	}
 }
 
+// nullableTimeString convertit une date optionnelle en chaine JSON.
 func nullableTimeString(value *time.Time) *string {
 	if value == nil {
 		return nil
@@ -1333,6 +1258,7 @@ func nullableTimeString(value *time.Time) *string {
 	return &formatted
 }
 
+// nullableStringValue retourne nil pour les chaines optionnelles vides.
 func nullableStringValue(value *string) *string {
 	if value == nil {
 		return nil
@@ -1340,6 +1266,7 @@ func nullableStringValue(value *string) *string {
 	return value
 }
 
+// writeLoginResponse ecrit la reponse JSON commune aux connexions.
 func writeLoginResponse(w http.ResponseWriter, user *users.User, csrf string) {
 	httpx.WriteJSON(w, http.StatusOK, contracts.LoginResponseDTO{
 		OK:        true,
@@ -1348,10 +1275,12 @@ func writeLoginResponse(w http.ResponseWriter, user *users.User, csrf string) {
 	})
 }
 
+// writeCSRFHeader expose le token CSRF courant dans les headers.
 func writeCSRFHeader(w http.ResponseWriter, csrf string) {
 	w.Header().Set("X-CSRF-Token", csrf)
 }
 
+// randomToken genere un token aleatoire pour le reset de mot de passe.
 func randomToken() (string, error) {
 	var b [32]byte
 	if _, err := rand.Read(b[:]); err != nil {
@@ -1360,6 +1289,7 @@ func randomToken() (string, error) {
 	return hex.EncodeToString(b[:]), nil
 }
 
+// parseTrailingID extrait un identifiant place en fin de chemin.
 func parseTrailingID(path string, suffix string) (int64, error) {
 	value := strings.TrimSuffix(strings.TrimSpace(path), suffix)
 	lastSlash := strings.LastIndex(value, "/")
@@ -1373,6 +1303,7 @@ func parseTrailingID(path string, suffix string) (int64, error) {
 	return id, nil
 }
 
+// isLoopbackRequest verifie que la requete provient d'une adresse locale.
 func isLoopbackRequest(r *http.Request) bool {
 	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
 	if err != nil {
@@ -1388,6 +1319,7 @@ func isLoopbackRequest(r *http.Request) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
+// isLoopbackRequestHost verifie que l'hote HTTP cible est local.
 func isLoopbackRequestHost(r *http.Request) bool {
 	host := strings.TrimSpace(r.Host)
 	if host == "" {
@@ -1401,6 +1333,7 @@ func isLoopbackRequestHost(r *http.Request) bool {
 	return config.IsLoopbackHost(host)
 }
 
+// refreshClaimsMatchCurrentUser verifie que le refresh token correspond encore a l'utilisateur.
 func refreshClaimsMatchCurrentUser(user *users.User, claims *middleware.UserClaims) bool {
 	if user == nil || claims == nil {
 		return false
@@ -1423,6 +1356,7 @@ func refreshClaimsMatchCurrentUser(user *users.User, claims *middleware.UserClai
 	return claims.SessionRevision == currentRevision
 }
 
+// isAllowedBrowserOrigin controle l'origine navigateur pour les requetes sensibles.
 func isAllowedBrowserOrigin(r *http.Request, frontendURL string) bool {
 	origin := strings.TrimSpace(r.Header.Get("Origin"))
 	if origin != "" {
@@ -1437,6 +1371,7 @@ func isAllowedBrowserOrigin(r *http.Request, frontendURL string) bool {
 	return matchesAllowedOrigin(referer, frontendURL)
 }
 
+// matchesAllowedOrigin compare une origine candidate a l'origine frontend autorisee.
 func matchesAllowedOrigin(candidate string, frontendURL string) bool {
 	candidateURL, err := url.Parse(candidate)
 	if err != nil {
@@ -1452,6 +1387,7 @@ func matchesAllowedOrigin(candidate string, frontendURL string) bool {
 		strings.EqualFold(candidateURL.Host, allowedURL.Host)
 }
 
+// isJSONContentType verifie que le Content-Type est compatible JSON.
 func isJSONContentType(rawContentType string) bool {
 	mediaType, _, err := mime.ParseMediaType(strings.TrimSpace(rawContentType))
 	if err != nil {
@@ -1461,6 +1397,7 @@ func isJSONContentType(rawContentType string) bool {
 	return mediaType == "application/json" || strings.HasSuffix(mediaType, "+json")
 }
 
+// firstNonBlank retourne la premiere valeur non vide.
 func firstNonBlank(values ...string) string {
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {
@@ -1470,10 +1407,12 @@ func firstNonBlank(values ...string) string {
 	return ""
 }
 
+// normalizeEmail nettoie et met en minuscule une adresse email.
 func normalizeEmail(email string) string {
 	return strings.TrimSpace(strings.ToLower(email))
 }
 
+// validatePublicRegistration valide les champs communs aux inscriptions publiques.
 func validatePublicRegistration(email, username, password string) error {
 	if err := validateEmail(email); err != nil {
 		return err
@@ -1495,6 +1434,7 @@ func validatePublicRegistration(email, username, password string) error {
 	return validatePassword(password)
 }
 
+// validateOrganizationRegistrationFields valide les limites des champs organisation.
 func validateOrganizationRegistrationFields(req contracts.RegisterOrganizationRequestDTO) error {
 	for _, value := range []struct {
 		name  string
@@ -1525,6 +1465,7 @@ func validateOrganizationRegistrationFields(req contracts.RegisterOrganizationRe
 	return nil
 }
 
+// validateEmail verifie le format et la longueur d'une adresse email.
 func validateEmail(email string) error {
 	if email == "" || len(email) > 254 || strings.ContainsAny(email, " \t\r\n") {
 		return errors.New("email is invalid")
@@ -1536,6 +1477,7 @@ func validateEmail(email string) error {
 	return nil
 }
 
+// validatePassword verifie les contraintes minimales d'un mot de passe.
 func validatePassword(password string) error {
 	if strings.TrimSpace(password) == "" {
 		return errors.New("password is required")
@@ -1557,6 +1499,7 @@ func validatePassword(password string) error {
 	return nil
 }
 
+// writeAuthMutationError traduit les erreurs repository en reponses HTTP.
 func writeAuthMutationError(w http.ResponseWriter, err error) {
 	if errors.Is(err, users.ErrEmailAlreadyUsed) {
 		httpx.WriteJSONError(w, http.StatusConflict, "email already used")
@@ -1591,6 +1534,28 @@ func writeAuthMutationError(w http.ResponseWriter, err error) {
 	httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
 }
 
+// writeAuthServiceError traduit les erreurs service en reponses HTTP.
+func writeAuthServiceError(w http.ResponseWriter, err error) {
+	if errors.Is(err, ErrInvalidAuthInput) {
+		message := strings.TrimPrefix(err.Error(), ErrInvalidAuthInput.Error()+": ")
+		httpx.WriteJSONError(w, http.StatusBadRequest, message)
+		return
+	}
+	if errors.Is(err, ErrInvalidRegistration) {
+		message := strings.TrimPrefix(err.Error(), ErrInvalidRegistration.Error()+": ")
+		httpx.WriteJSONError(w, http.StatusBadRequest, message)
+		return
+	}
+	if errors.Is(err, ErrPasswordHashFailed) {
+		log.Error().Err(err).Msg("auth password hash failed")
+		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	writeAuthMutationError(w, err)
+}
+
+// writeGeocodingError traduit les erreurs de geocodage en reponses HTTP.
 func writeGeocodingError(w http.ResponseWriter, err error) {
 	if errors.Is(err, geocoding.ErrNoMatch) {
 		httpx.WriteJSONError(w, http.StatusBadRequest, "address could not be geocoded")
@@ -1601,6 +1566,7 @@ func writeGeocodingError(w http.ResponseWriter, err error) {
 	httpx.WriteJSONError(w, http.StatusBadGateway, "address geocoding service unavailable")
 }
 
+// normalizeSlugs nettoie, dedoublonne et normalise les slugs recus.
 func normalizeSlugs(values []string) []string {
 	out := make([]string, 0, len(values))
 	seen := make(map[string]struct{}, len(values))
