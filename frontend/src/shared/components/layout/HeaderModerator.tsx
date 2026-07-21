@@ -1,8 +1,4 @@
-import {
-  Settings2,
-  ShieldAlert,
-  UserRound,
-} from "lucide-react";
+import { Settings2, ShieldAlert, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 
@@ -30,14 +26,14 @@ export default function HeaderModerator({
         ROUTES.MODERATOR.ACCOUNTS,
         ROUTES.MODERATOR.REPORTS,
       ],
-      label: "Administration",
+      label: "Modération",
       route: ROUTES.MODERATOR.DASHBOARD,
       Icon: ShieldAlert,
       sectionTitles: {
-        [ROUTES.MODERATOR.DASHBOARD]: "Moderation des utilisateurs",
+        [ROUTES.MODERATOR.DASHBOARD]: "Modération des utilisateurs",
         [ROUTES.MODERATOR.EVENTS]: "Modération des événements",
-        [ROUTES.MODERATOR.ORGANIZATIONS]: "Moderation des organizations",
-        [ROUTES.MODERATOR.ACCOUNTS]: "Moderation des utilisateurs",
+        [ROUTES.MODERATOR.ORGANIZATIONS]: "Modération des organisations",
+        [ROUTES.MODERATOR.ACCOUNTS]: "Modération des utilisateurs",
         [ROUTES.MODERATOR.REPORTS]: "Signalements",
       },
       end: true,
@@ -49,17 +45,17 @@ export default function HeaderModerator({
       sectionTitle: "Mon profil",
     },
     {
-      label: "Parametres",
+      label: "Paramètres",
       route: ROUTES.MODERATOR.PARAMETERS,
       Icon: Settings2,
-      sectionTitle: "Mes parametres",
+      sectionTitle: "Mes paramètres",
     },
   ] as const;
 
   if (showAccountHeader) {
     return (
       <StaffAccountHeader
-        ariaLabel="Navigation moderation"
+        ariaLabel="Navigation modération"
         sectionAction={staffHeaderAction}
         tabs={moderatorTabs}
       />

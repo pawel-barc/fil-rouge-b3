@@ -27,12 +27,10 @@ type BackendAuthUser = {
 type LoginResponse = {
   ok: true;
   user: BackendAuthUser;
-  csrf_token?: string;
 };
 
 type RefreshResponse = {
   ok: true;
-  csrf_token?: string;
 };
 
 export type LoginPayload = {

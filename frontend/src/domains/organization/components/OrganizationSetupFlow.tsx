@@ -16,7 +16,11 @@ import { ROUTES } from "../../../shared/constants/routes";
 import useDataStore from "../../../shared/store/dataStore";
 import useAuthStore from "../../auth/store/authStore";
 import { organizationsApi } from "../api/organizations.api";
-import { CATEGORIES, type OrganizationCategoryName } from "../types/organization-categories";
+import {
+  CATEGORIES,
+  getOrganizationCategoryLabel,
+  type OrganizationCategoryName,
+} from "../types/organization-categories";
 import {
   emptyOrganizationForm,
   emptyOrganizerProfileForm,
@@ -382,14 +386,14 @@ export function OrganizationFields({
         <div className="organization-form__wide">
           <CheckboxGroup
             error={errors.categories}
-            label="Categories"
+            label="Catégories"
             labelId="organization-categories"
           >
             {CATEGORIES.map((category) => (
               <Checkbox
                 checked={form.categories.includes(category)}
                 key={category}
-                label={category}
+                label={getOrganizationCategoryLabel(category)}
                 onChange={() => onCategoryToggle(category)}
               />
             ))}

@@ -42,6 +42,7 @@ import type { Event } from "../../event/types/event";
 import type { Organization } from "../../organization/types/organization";
 import {
   CATEGORIES as ORGANIZATION_CATEGORIES,
+  getOrganizationCategoryLabel,
   type OrganizationCategoryName,
 } from "../../organization/types/organization-categories";
 import type {
@@ -168,13 +169,13 @@ type AccountRoleFilter = AccountLoginRole | "organizer" | "all";
 
 const accountLoginCreateLabels: Record<AccountLoginRole, string> = {
   user: "utilisateur",
-  moderator: "moderateur",
+  moderator: "modérateur",
   admin: "administrateur",
 };
 
 const getAdminAccountRoleLabel = (account: AccountSummary) =>
   account.organization_id
-    ? "Utilisateur organisateur"
+    ? "Organisateur"
     : accountRoleLabels[account.role];
 
 const normalizeText = (value: string) =>
@@ -434,6 +435,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     useState<AdminDecisionRequest | null>(null);
   const [decisionReason, setDecisionReason] = useState("");
   const [decisionReasonError, setDecisionReasonError] = useState("");
+  const [isDecisionSubmitting, setIsDecisionSubmitting] = useState(false);
 
   const activeOrganizationsData = organizationsData.filter((organization) => !organization.deleted_at);
   const hasDuplicateAccountEmail = (email: string, currentAccountId?: number) =>
@@ -503,16 +505,19 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     setDecisionRequest(request);
     setDecisionReason("");
     setDecisionReasonError("");
+    setIsDecisionSubmitting(false);
   };
 
   const closeDecisionModal = () => {
+    if (isDecisionSubmitting) return;
+
     setDecisionRequest(null);
     setDecisionReason("");
     setDecisionReasonError("");
   };
 
   const confirmDecision = async () => {
-    if (!decisionRequest) return;
+    if (!decisionRequest || isDecisionSubmitting) return;
 
     const reason = decisionReason.trim();
 
@@ -521,21 +526,28 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       return;
     }
 
-    const result = await decisionRequest.onConfirm(reason);
+    setIsDecisionSubmitting(true);
+    try {
+      const result = await decisionRequest.onConfirm(reason);
+      if (result === false) return;
 
-    if (result === false) return;
+      const recorded = await recordDecision(
+        decisionRequest.action,
+        decisionRequest.targetType,
+        decisionRequest.targetId,
+        reason,
+      );
+      if (recorded === false) return;
 
-    const recorded = await recordDecision(
-      decisionRequest.action,
-      decisionRequest.targetType,
-      decisionRequest.targetId,
-      reason,
-    );
-    if (recorded === false) return;
-    if (decisionRequest.successMessage) {
-      toast.success(decisionRequest.successMessage);
+      if (decisionRequest.successMessage) {
+        toast.success(decisionRequest.successMessage);
+      }
+      setDecisionRequest(null);
+      setDecisionReason("");
+      setDecisionReasonError("");
+    } finally {
+      setIsDecisionSubmitting(false);
     }
-    closeDecisionModal();
   };
 
   const filteredUsers = useMemo(
@@ -1675,6 +1687,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       </FormModal>
       <DecisionReasonModal
         error={decisionReasonError}
+        loading={isDecisionSubmitting}
         open={!!decisionRequest}
         reason={decisionReason}
         title={decisionRequest?.title ?? "Justifier la decision"}
@@ -1878,12 +1891,12 @@ function OrganizationEditor({
         onChange={(event) => updateField("is_verified", event.target.checked)}
       />
       <div className="admin-form-grid__wide">
-        <CheckboxGroup label="Categories" labelId="admin-organization-categories">
+        <CheckboxGroup label="Catégories" labelId="admin-organization-categories">
           {ORGANIZATION_CATEGORIES.map((category) => (
             <Checkbox
               checked={draft.category_slugs.includes(category)}
               key={category}
-              label={category}
+              label={getOrganizationCategoryLabel(category)}
               onChange={() => toggleCategory(category)}
             />
           ))}

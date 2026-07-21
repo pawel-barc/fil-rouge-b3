@@ -337,7 +337,7 @@ const Router = ({
         <Route
           element={
             <PrivateRoute>
-              <RoleRoute roles={["user", "admin", "moderator"]}>
+              <RoleRoute roles={["user", "admin", "moderator", "organization"]}>
                 <PrivateLayout />
               </RoleRoute>
             </PrivateRoute>
@@ -390,7 +390,7 @@ const Router = ({
             <Route
               path={ROUTES.USER.NOTIFICATIONS}
               element={
-                <RoleRoute role="user">
+                <RoleRoute roles={["user", "organization"]}>
                   <RequireUserPreferences isReady={isUserDataReady}>
                     <Notifications />
                   </RequireUserPreferences>
@@ -400,7 +400,7 @@ const Router = ({
             <Route
               path={ROUTES.USER.PARAMETERS}
               element={
-                <RoleRoute roles={["user", "admin", "moderator"]}>
+                <RoleRoute roles={["user", "admin", "moderator", "organization"]}>
                   <ProfilePreferences />
                 </RoleRoute>
               }
@@ -408,7 +408,7 @@ const Router = ({
             <Route
               path={ROUTES.USER.ORGANIZATIONS}
               element={
-                <RoleRoute role="user">
+                <RoleRoute roles={["user", "organization"]}>
                   <RequireUserPreferences isReady={isUserDataReady}>
                     <RequireUserOrganizer>
                       <OrganizationsPage />
@@ -420,7 +420,7 @@ const Router = ({
             <Route
               path={ROUTES.USER.EVENTS}
               element={
-                <RoleRoute role="user">
+                <RoleRoute roles={["user", "organization"]}>
                   <RequireUserPreferences isReady={isUserDataReady}>
                     <RequireUserOrganizer>
                       <UserEvents />
@@ -577,7 +577,7 @@ const Router = ({
           <Route
             path={ROUTES.ORGANIZATION.CREATE}
             element={
-              <RoleRoute role="user">
+              <RoleRoute roles={["user", "organization"]}>
                 <RequireUserOrganizer>
                   <OrganizationEventCreate />
                 </RequireUserOrganizer>
@@ -611,7 +611,7 @@ const Router = ({
                 path={ROUTES.USER.CHANGE_PASSWORD}
                 element={
                   <PrivateRoute>
-                    <RoleRoute role="user">
+                    <RoleRoute roles={["user", "admin", "moderator", "organization"]}>
                       <RequireUserPreferences isReady={isUserDataReady}>
                         <ChangePassword />
                       </RequireUserPreferences>
@@ -623,7 +623,7 @@ const Router = ({
                 path={ROUTES.USER.PARAMETERS}
                 element={
                   <PrivateRoute>
-                    <RoleRoute roles={["user", "admin", "moderator"]}>
+                    <RoleRoute roles={["user", "admin", "moderator", "organization"]}>
                       <ProfilePreferences />
                     </RoleRoute>
                   </PrivateRoute>
@@ -633,7 +633,7 @@ const Router = ({
                 path={ROUTES.USER.BECOME_ORGANIZER}
                 element={
                   <PrivateRoute>
-                    <RoleRoute role="user">
+                    <RoleRoute roles={["user", "organization"]}>
                       <OrganizationSetup mode="become" />
                     </RoleRoute>
                   </PrivateRoute>
@@ -643,7 +643,7 @@ const Router = ({
                 path={ROUTES.USER.CREATE_ORGANIZATION}
                 element={
                   <PrivateRoute>
-                    <RoleRoute role="user">
+                    <RoleRoute roles={["user", "organization"]}>
                       <OrganizationSetup mode="create" />
                     </RoleRoute>
                   </PrivateRoute>
@@ -653,7 +653,7 @@ const Router = ({
                 path={ROUTES.ORGANIZATION.CREATE}
                 element={
                   <PrivateRoute>
-                    <RoleRoute role="user">
+                    <RoleRoute roles={["user", "organization"]}>
                       <RequireUserOrganizer>
                         <OrganizationEventCreate />
                       </RequireUserOrganizer>

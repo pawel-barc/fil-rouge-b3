@@ -200,20 +200,20 @@ func validateNewPassword(password string) error {
 	)
 
 	if strings.TrimSpace(password) == "" {
-		return errors.New("password cannot be blank")
+		return ErrInvalidAdminUserInput("Le mot de passe est obligatoire")
 	}
 	if password != strings.TrimSpace(password) {
-		return errors.New("password cannot start or end with whitespace")
+		return ErrInvalidAdminUserInput("Le mot de passe ne peut pas commencer ou se terminer par un espace")
 	}
 	if utf8.RuneCountInString(password) < minPasswordLength {
-		return errors.New("password too short")
+		return ErrInvalidAdminUserInput("Le mot de passe doit contenir au moins 12 caracteres")
 	}
 	if utf8.RuneCountInString(password) > maxPasswordLength {
-		return errors.New("password too long")
+		return ErrInvalidAdminUserInput("Le mot de passe doit contenir au maximum 128 caracteres")
 	}
 	for _, r := range password {
 		if unicode.IsControl(r) {
-			return errors.New("password cannot contain control characters")
+			return ErrInvalidAdminUserInput("Le mot de passe ne peut pas contenir de caracteres de controle")
 		}
 	}
 

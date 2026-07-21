@@ -318,6 +318,7 @@ func (r *Repository) createActionNotification(ctx context.Context, tx *sql.Tx, r
 		return nil, err
 	}
 	title := notificationTitle(req.Action)
+	message := notificationMessage(req.Action, req.Reason)
 	actionPath := actionURL(req.TargetType, req.TargetID)
 	messages := make([]mailer.Message, 0, len(recipientUserIDs))
 	for _, recipient := range recipientUserIDs {
@@ -326,10 +327,10 @@ func (r *Repository) createActionNotification(ctx context.Context, tx *sql.Tx, r
 				user_id, event_id, organization_id, notification_type_id, title, message, action_url
 			)
 			VALUES ($1, $2, $3, $4, $5, $6, $7)
-		`, recipient.UserID, eventID, organizationID, typeID, title, req.Reason, actionPath); err != nil {
+		`, recipient.UserID, eventID, organizationID, typeID, title, message, actionPath); err != nil {
 			return nil, fmt.Errorf("create action notification: %w", err)
 		}
-		messages = append(messages, r.notificationEmail(recipient, title, req.Reason, actionPath))
+		messages = append(messages, r.notificationEmail(recipient, title, message, actionPath))
 	}
 	return messages, nil
 }
@@ -977,24 +978,56 @@ func parseOptionalActionTime(raw *string) sql.NullTime {
 func notificationTitle(action string) string {
 	switch action {
 	case "organization_approved":
-		return "Organisation validee"
+		return "Organisation validée"
 	case "organization_rejected", "organization_deleted":
-		return "Organisation refusee"
+		return "Organisation refusée"
 	case "event_approved":
-		return "Evenement valide"
+		return "Événement validé"
 	case "event_rejected":
-		return "Evenement refuse"
+		return "Événement refusé"
 	case "event_hidden":
-		return "Evenement suspendu"
+		return "Événement suspendu"
 	case "event_deleted":
-		return "Evenement supprime"
+		return "Événement supprimé"
 	case "account_suspended":
 		return "Compte suspendu"
 	case "account_restored", "event_restored":
-		return "Suspension levee"
+		return "Suspension levée"
 	default:
-		return "Decision de moderation"
+		return "Décision de modération"
 	}
+}
+
+func notificationMessage(action string, reason string) string {
+	reason = strings.TrimSpace(reason)
+
+	switch action {
+	case "organization_approved":
+		return "Votre organisation a été validée. Elle peut maintenant être visible sur Mappening."
+	case "organization_rejected", "organization_deleted":
+		return messageWithOptionalReason("Votre demande d'organisation a été refusée.", reason)
+	case "event_approved":
+		return "Votre événement a été validé et publié sur Mappening."
+	case "event_rejected":
+		return messageWithOptionalReason("Votre événement a été refusé par l'équipe de modération.", reason)
+	case "event_hidden":
+		return messageWithOptionalReason("Votre événement a été temporairement masqué.", reason)
+	case "event_deleted":
+		return messageWithOptionalReason("Votre événement a été supprimé.", reason)
+	case "account_suspended":
+		return messageWithOptionalReason("Votre compte a été temporairement suspendu.", reason)
+	case "account_restored", "event_restored":
+		return messageWithOptionalReason("La suspension a été levée.", reason)
+	default:
+		return messageWithOptionalReason("Une décision de modération a été appliquée.", reason)
+	}
+}
+
+func messageWithOptionalReason(message string, reason string) string {
+	if reason == "" {
+		return message
+	}
+	return message + " Motif : " + reason
 }
 
 func actionURL(targetType string, targetID int64) string {

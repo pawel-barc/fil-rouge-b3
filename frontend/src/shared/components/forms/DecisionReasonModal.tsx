@@ -9,6 +9,7 @@ type DecisionReasonModalProps = {
   children?: ReactNode;
   confirmLabel?: string;
   error?: string;
+  loading?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
   onReasonChange: (reason: string) => void;
@@ -23,6 +24,7 @@ export default function DecisionReasonModal({
   children,
   confirmLabel = "Confirmer la decision",
   error,
+  loading = false,
   onCancel,
   onConfirm,
   onReasonChange,
@@ -32,7 +34,12 @@ export default function DecisionReasonModal({
   variant = "primary",
 }: DecisionReasonModalProps) {
   return (
-    <FormModal ariaLabel={title} open={open} size="sm" onClose={onCancel}>
+    <FormModal
+      ariaLabel={title}
+      open={open}
+      size="sm"
+      onClose={loading ? () => {} : onCancel}
+    >
       <div className="confirm-dialog">
         <h2>{title}</h2>
         {children}
@@ -44,15 +51,27 @@ export default function DecisionReasonModal({
             rows={4}
             placeholder="Saisissez la justification obligatoire"
             value={reason}
+            disabled={loading}
             onChange={(event) => onReasonChange(event.target.value)}
           />
         </label>
         {error ? <p className="form-error">{error}</p> : null}
         <div className="confirm-dialog__actions">
-          <Button type="button" variant="secondary" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={loading}
+            onClick={onCancel}
+          >
             {cancelLabel}
           </Button>
-          <Button type="button" variant={variant} onClick={onConfirm}>
+          <Button
+            type="button"
+            variant={variant}
+            loading={loading}
+            disabled={loading}
+            onClick={onConfirm}
+          >
             {confirmLabel}
           </Button>
         </div>

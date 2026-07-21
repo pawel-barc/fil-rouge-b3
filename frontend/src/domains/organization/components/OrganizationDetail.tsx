@@ -23,6 +23,10 @@ import type { Event } from "../../event/types/event";
 import type { EventCategory } from "../../event/types/event-categories";
 import { organizationsApi } from "../api/organizations.api";
 import {
+  getOrganizationCategoryLabel,
+  type OrganizationCategoryName,
+} from "../types/organization-categories";
+import {
   formatDateTime,
   formatEventDateRange,
   formatEventPrice,
@@ -437,8 +441,14 @@ export default function OrganizationDetailPage() {
             <dd>{organization.contact_email}</dd>
           </div>
           <div>
-            <dt>Categories</dt>
-            <dd>{organization.category_slugs.join(", ")}</dd>
+            <dt>Catégories</dt>
+            <dd>
+              {organization.category_slugs
+                .map((category) =>
+                  getOrganizationCategoryLabel(category as OrganizationCategoryName),
+                )
+                .join(", ")}
+            </dd>
           </div>
           <div>
             <dt>Fonction</dt>

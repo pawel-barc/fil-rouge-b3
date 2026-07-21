@@ -26,6 +26,9 @@ const (
 	addressAPIURL         = "https://data.geopf.fr/geocodage/search"
 	eventDateTimeDBLayout = "2006-01-02 15:04:05"
 	defaultUserAgent      = "MappeningBot/1.0 (+https://mappening.fr)"
+	marseilleLatitude     = 43.2965
+	marseilleLongitude    = 5.3698
+	maxMarseilleRadiusKM  = 40.0
 )
 
 type TarpinBienService struct {
@@ -123,6 +126,31 @@ func eventLocation() *time.Location {
 
 func formatEventDateTimeForDB(value time.Time) string {
 	return value.In(eventLocation()).Format(eventDateTimeDBLayout)
+}
+
+func isWithinMarseilleRadius(latitude, longitude float64) bool {
+	return distanceInKilometers(
+		marseilleLatitude,
+		marseilleLongitude,
+		latitude,
+		longitude,
+	) <= maxMarseilleRadiusKM
+}
+
+func distanceInKilometers(fromLatitude, fromLongitude, toLatitude, toLongitude float64) float64 {
+	const earthRadiusKM = 6371.0
+
+	fromLatRad := fromLatitude * math.Pi / 180
+	toLatRad := toLatitude * math.Pi / 180
+	deltaLatRad := (toLatitude - fromLatitude) * math.Pi / 180
+	deltaLonRad := (toLongitude - fromLongitude) * math.Pi / 180
+
+	a := math.Sin(deltaLatRad/2)*math.Sin(deltaLatRad/2) +
+		math.Cos(fromLatRad)*math.Cos(toLatRad)*
+			math.Sin(deltaLonRad/2)*math.Sin(deltaLonRad/2)
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+
+	return earthRadiusKM * c
 }
 
 func NewTarpinBienService(db *sql.DB) *TarpinBienService {
@@ -247,6 +275,28 @@ func (s *TarpinBienService) Run(ctx context.Context) (stats TarpinBienStats, err
 				Str("title", event.Title).
 				Str("address", event.Address).
 				Str("reason", "missing_coordinates").
+				Dur("event_duration", time.Since(eventStartedAt)).
+				Msg("scraped event ignored")
+			continue
+		}
+		distanceFromMarseille := distanceInKilometers(
+			marseilleLatitude,
+			marseilleLongitude,
+			*event.Latitude,
+			*event.Longitude,
+		)
+		if !isWithinMarseilleRadius(*event.Latitude, *event.Longitude) {
+			stats.SkippedInvalid++
+			log.Warn().
+				Str("source", TarpinBienSource).
+				Str("event_url", detailURL).
+				Str("title", event.Title).
+				Str("address", event.Address).
+				Str("city", event.City).
+				Str("postal_code", event.PostalCode).
+				Float64("distance_km", distanceFromMarseille).
+				Float64("max_distance_km", maxMarseilleRadiusKM).
+				Str("reason", "outside_marseille_radius").
 				Dur("event_duration", time.Since(eventStartedAt)).
 				Msg("scraped event ignored")
 			continue

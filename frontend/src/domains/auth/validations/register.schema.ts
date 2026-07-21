@@ -11,14 +11,28 @@ const passwordSchema = z
   .regex(/[0-9]/, "Un chiffre requis")
   .regex(/[^a-zA-Z0-9]/, "Un caractere special requis");
 
+const registerSchemaShape = {
+  username: z.string().min(2, "Nom d'utilisateur trop court"),
+  login_email: z
+    .email({ message: "Format d'email invalide" })
+    .nonempty("Email requis"),
+  password: passwordSchema,
+  confirmPassword: z.string().min(1, "Confirmation requise"),
+};
+
 export const registerSchema = z
   .object({
-    username: z.string().min(2, "Nom d'utilisateur trop court"),
-    login_email: z
-      .email({ message: "Format d'email invalide" })
-      .nonempty("Email requis"),
-    password: passwordSchema,
-    confirmPassword: z.string().min(1, "Confirmation requise"),
+    ...registerSchemaShape,
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Les mots de passe ne correspondent pas",
+    path: ["confirmPassword"],
+  });
+
+export const adminRegisterSchema = z
+  .object({
+    ...registerSchemaShape,
+    password: passwordSchema.min(12, "Minimum 12 caracteres"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Les mots de passe ne correspondent pas",

@@ -201,7 +201,7 @@ func (h Handler) Login(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSONError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	csrf, ok := h.startSession(w, user, "login failed")
+	_, ok = h.startSession(w, user, "login failed")
 	if !ok {
 		return
 	}
@@ -211,7 +211,7 @@ func (h Handler) Login(w http.ResponseWriter, r *http.Request) {
 		Str("role", user.Role).
 		Msg("login success")
 
-	writeLoginResponse(w, user, csrf)
+	writeLoginResponse(w, user)
 }
 
 // RegisterUser cree un compte utilisateur puis ouvre une session.
@@ -243,15 +243,14 @@ func (h Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	csrf, ok := h.startSession(w, user, "register user failed")
+	_, ok = h.startSession(w, user, "register user failed")
 	if !ok {
 		return
 	}
 
 	httpx.WriteJSON(w, http.StatusCreated, contracts.LoginResponseDTO{
-		OK:        true,
-		User:      toAuthUserDTO(user),
-		CSRFToken: csrf,
+		OK:   true,
+		User: toAuthUserDTO(user),
 	})
 	h.sendWelcomeEmail(r.Context(), user.Email, user.FirstName, false)
 }
@@ -291,7 +290,7 @@ func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	csrf, ok := h.startSession(w, user, "register organization failed")
+	_, ok = h.startSession(w, user, "register organization failed")
 	if !ok {
 		return
 	}
@@ -299,9 +298,8 @@ func (h Handler) RegisterOrganization(w http.ResponseWriter, r *http.Request) {
 	dto := toAuthUserDTO(user)
 	dto.OrganizationID = &organizationID
 	httpx.WriteJSON(w, http.StatusCreated, contracts.LoginResponseDTO{
-		OK:        true,
-		User:      dto,
-		CSRFToken: csrf,
+		OK:   true,
+		User: dto,
 	})
 	h.sendWelcomeEmail(r.Context(), user.Email, user.FirstName, true)
 }
@@ -400,7 +398,7 @@ func (h Handler) DevLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	csrf, ok := h.startSession(w, user, "dev login failed")
+	_, ok := h.startSession(w, user, "dev login failed")
 	if !ok {
 		return
 	}
@@ -410,7 +408,7 @@ func (h Handler) DevLogin(w http.ResponseWriter, r *http.Request) {
 		Str("role", user.Role).
 		Msg("dev login success")
 
-	writeLoginResponse(w, user, csrf)
+	writeLoginResponse(w, user)
 }
 
 // Refresh renouvelle les tokens depuis le refresh token valide.
@@ -573,7 +571,7 @@ func (h Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		Str("email", user.Email).
 		Msg("refresh success")
 
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true, "csrf_token": csrf})
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 // Logout supprime le refresh token et nettoie les cookies d'authentification.
@@ -1267,11 +1265,10 @@ func nullableStringValue(value *string) *string {
 }
 
 // writeLoginResponse ecrit la reponse JSON commune aux connexions.
-func writeLoginResponse(w http.ResponseWriter, user *users.User, csrf string) {
+func writeLoginResponse(w http.ResponseWriter, user *users.User) {
 	httpx.WriteJSON(w, http.StatusOK, contracts.LoginResponseDTO{
-		OK:        true,
-		User:      toAuthUserDTO(user),
-		CSRFToken: csrf,
+		OK:   true,
+		User: toAuthUserDTO(user),
 	})
 }
 
@@ -1491,10 +1488,36 @@ func validatePassword(password string) error {
 	if utf8.RuneCountInString(password) > 128 {
 		return errors.New("password too long")
 	}
+	hasLower := false
+	hasUpper := false
+	hasDigit := false
+	hasSpecial := false
 	for _, r := range password {
 		if unicode.IsControl(r) {
 			return errors.New("password cannot contain control characters")
 		}
+		switch {
+		case r >= 'a' && r <= 'z':
+			hasLower = true
+		case r >= 'A' && r <= 'Z':
+			hasUpper = true
+		case r >= '0' && r <= '9':
+			hasDigit = true
+		default:
+			hasSpecial = true
+		}
+	}
+	if !hasLower {
+		return errors.New("password lowercase required")
+	}
+	if !hasUpper {
+		return errors.New("password uppercase required")
+	}
+	if !hasDigit {
+		return errors.New("password digit required")
+	}
+	if !hasSpecial {
+		return errors.New("password special character required")
 	}
 	return nil
 }

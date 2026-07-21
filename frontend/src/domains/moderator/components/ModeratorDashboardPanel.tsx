@@ -260,6 +260,7 @@ export default function ModeratorDashboard({
     useState<ModeratorDecisionRequest | null>(null);
   const [decisionReason, setDecisionReason] = useState("");
   const [decisionReasonError, setDecisionReasonError] = useState("");
+  const [isDecisionSubmitting, setIsDecisionSubmitting] = useState(false);
 
   const canFinalizeEvents = currentUser?.role === "admin";
   const accountSummaries = useMemo(
@@ -415,16 +416,19 @@ export default function ModeratorDashboard({
     setDecisionRequest(request);
     setDecisionReason("");
     setDecisionReasonError("");
+    setIsDecisionSubmitting(false);
   };
 
   const closeDecisionModal = () => {
+    if (isDecisionSubmitting) return;
+
     setDecisionRequest(null);
     setDecisionReason("");
     setDecisionReasonError("");
   };
 
   const confirmDecision = async () => {
-    if (!decisionRequest) return;
+    if (!decisionRequest || isDecisionSubmitting) return;
 
     const reason = decisionReason.trim();
 
@@ -433,11 +437,17 @@ export default function ModeratorDashboard({
       return;
     }
 
-    const result = await decisionRequest.onConfirm(reason);
+    setIsDecisionSubmitting(true);
+    try {
+      const result = await decisionRequest.onConfirm(reason);
+      if (result === false) return;
 
-    if (result === false) return;
-
-    closeDecisionModal();
+      setDecisionRequest(null);
+      setDecisionReason("");
+      setDecisionReasonError("");
+    } finally {
+      setIsDecisionSubmitting(false);
+    }
   };
 
   const suspendReportedEvent = async (
@@ -1518,6 +1528,7 @@ export default function ModeratorDashboard({
       )}
       <DecisionReasonModal
         error={decisionReasonError}
+        loading={isDecisionSubmitting}
         open={!!decisionRequest}
         reason={decisionReason}
         title={decisionRequest?.title ?? "Justifier la decision"}

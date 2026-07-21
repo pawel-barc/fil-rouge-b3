@@ -140,11 +140,11 @@ async function mockApi(page: Page) {
           : apiUser;
     authenticatedUser = user;
     await route.fulfill({
-      json: { ok: true, csrf_token: "csrf-test", user },
+      json: { ok: true, user },
     });
   });
   await page.route("**/api/auth/refresh", (route) =>
-    route.fulfill({ json: { ok: true, csrf_token: "csrf-test" } }),
+    route.fulfill({ json: { ok: true } }),
   );
   await page.route("**/api/auth/me", (route) =>
     route.fulfill({ json: authenticatedUser }),

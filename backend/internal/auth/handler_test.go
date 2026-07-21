@@ -134,9 +134,8 @@ func TestAuthHandler_Login_OK_SetsCookies_AndStore(t *testing.T) {
 	}
 
 	var payload struct {
-		OK        bool   `json:"ok"`
-		CSRFToken string `json:"csrf_token"`
-		User      struct {
+		OK   bool `json:"ok"`
+		User struct {
 			Email string `json:"email"`
 			Role  string `json:"role"`
 		} `json:"user"`
@@ -147,11 +146,9 @@ func TestAuthHandler_Login_OK_SetsCookies_AndStore(t *testing.T) {
 	if !payload.OK || payload.User.Email != "admin@mappening.local" || payload.User.Role != "admin" {
 		t.Fatalf("unexpected login payload: %+v", payload)
 	}
-	if payload.CSRFToken == "" {
-		t.Fatalf("expected csrf token in login payload")
-	}
-	if res.Header.Get("X-CSRF-Token") != payload.CSRFToken {
-		t.Fatalf("expected csrf response header to match payload")
+	csrfHeader := res.Header.Get("X-CSRF-Token")
+	if csrfHeader == "" {
+		t.Fatalf("expected csrf response header")
 	}
 
 	cookies := res.Cookies()
@@ -161,8 +158,12 @@ func TestAuthHandler_Login_OK_SetsCookies_AndStore(t *testing.T) {
 	if findCookie(cookies, "refresh_token") == nil {
 		t.Fatalf("expected refresh_token cookie")
 	}
-	if findCookie(cookies, "csrf_token") == nil {
+	csrfCookie := findCookie(cookies, "csrf_token")
+	if csrfCookie == nil {
 		t.Fatalf("expected csrf_token cookie")
+	}
+	if csrfCookie.Value != csrfHeader {
+		t.Fatalf("expected csrf cookie to match response header")
 	}
 
 	// Le store doit contenir un JTI pour le subject
@@ -441,17 +442,24 @@ func TestAuthHandler_Refresh_RotatesRefreshCookie_AndStore(t *testing.T) {
 	}
 
 	var payload struct {
-		OK        bool   `json:"ok"`
-		CSRFToken string `json:"csrf_token"`
+		OK bool `json:"ok"`
 	}
 	if err := json.NewDecoder(res2.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode refresh payload: %v", err)
 	}
-	if !payload.OK || payload.CSRFToken == "" {
-		t.Fatalf("expected csrf token in refresh payload, got %+v", payload)
+	if !payload.OK {
+		t.Fatalf("expected successful refresh payload, got %+v", payload)
 	}
-	if res2.Header.Get("X-CSRF-Token") != payload.CSRFToken {
-		t.Fatalf("expected csrf response header to match payload")
+	csrfHeader := res2.Header.Get("X-CSRF-Token")
+	if csrfHeader == "" {
+		t.Fatalf("expected csrf response header")
+	}
+	csrfCookie := findCookie(res2.Cookies(), "csrf_token")
+	if csrfCookie == nil {
+		t.Fatalf("expected csrf_token cookie on refresh response")
+	}
+	if csrfCookie.Value != csrfHeader {
+		t.Fatalf("expected csrf cookie to match response header")
 	}
 
 	newRefresh := findCookie(res2.Cookies(), "refresh_token")

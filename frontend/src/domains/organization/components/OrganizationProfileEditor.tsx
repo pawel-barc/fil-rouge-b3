@@ -3,7 +3,11 @@ import { toast } from "react-toastify";
 
 import useAuthStore from "../../auth/store/authStore";
 import { organizationsApi } from "../api/organizations.api";
-import { CATEGORIES, type CategoryName } from "../types/organization-categories";
+import {
+  CATEGORIES,
+  getOrganizationCategoryLabel,
+  type CategoryName,
+} from "../types/organization-categories";
 import type { Organization } from "../types/organization";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import AddressAutocomplete from "../../../shared/components/forms/AddressAutocomplete";
@@ -358,14 +362,14 @@ export default function OrganizationProfile() {
             <div className="organization-event-form__wide">
               <CheckboxGroup
                 error={errors.categories}
-                label="Categories"
+                label="Catégories"
                 labelId="organization-categories"
               >
                 {CATEGORIES.map((category) => (
                   <Checkbox
                     checked={form.categories.includes(category)}
                     key={category}
-                    label={category}
+                    label={getOrganizationCategoryLabel(category)}
                     onChange={() => toggleCategory(category)}
                   />
                 ))}
