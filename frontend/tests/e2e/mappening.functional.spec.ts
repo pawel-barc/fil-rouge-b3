@@ -171,7 +171,7 @@ async function mockApi(page: Page) {
           id: 1,
           user_id: 1,
           notification_type_id: 1,
-          title: "Organisation validee",
+          title: "Organisation validée",
           message: "Votre organisation est maintenant visible.",
           is_read: false,
           created_at: "2026-07-01T10:00:00Z",
@@ -273,7 +273,7 @@ test("consultation, recherche, filtrage et tri des evenements", async ({ page })
 
   await page.getByRole("button", { name: /rechercher/i }).click();
   await page
-    .getByRole("searchbox", { name: /rechercher un evenement/i })
+    .getByRole("searchbox", { name: /rechercher un événement/i })
     .last()
     .fill("affiche");
   await expect(page.getByText("Atelier affiche")).toBeVisible();
@@ -289,7 +289,7 @@ test("consultation, recherche, filtrage et tri des evenements", async ({ page })
 test("affichage du bandeau hors ligne", async ({ context, page }) => {
   await page.goto("/");
 
-  const offlineBanner = page.getByText("Vous etes hors ligne");
+  const offlineBanner = page.getByText(/vous êtes hors ligne/i);
   await expect(offlineBanner).toHaveCount(0);
 
   await context.setOffline(true);
@@ -318,7 +318,7 @@ test("inscription, connexion, favoris, historique, preferences et notifications"
   await expect(page.getByText(/pr.f.rences|param.tres/i).first()).toBeVisible();
 
   await page.goto("/account/notifications");
-  await expect(page.getByText("Organisation validee")).toBeVisible();
+  await expect(page.getByText("Organisation validée")).toBeVisible();
 });
 
 test("creation organisation et evenement avec acces organisateur", async ({ page }) => {
