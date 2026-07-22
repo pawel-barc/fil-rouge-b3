@@ -106,7 +106,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/safebase-api
+          images: ghcr.io/${{ github.repository_owner }}/mappening-api
           tags: |
             type=raw,value=latest
             type=sha,prefix=sha-
@@ -142,17 +142,18 @@ jobs:
           fi
 
           if [ "$JOB_STATUS" = "success" ]; then
-            icon="✅"
+            icon="[OK]"
             error_message="Aucune erreur."
           else
-            icon="❌"
-            error_message="La pipeline a échoué. Consultez les logs GitHub Actions : $RUN_URL"
+            icon="[FAIL]"
+            error_message="La pipeline a echoue. Consultez les logs GitHub Actions : $RUN_URL"
           fi
 
           payload=$(jq -n \
-            --arg text "$icon Pipeline CI SafeBase : $JOB_STATUS\nDépôt : $REPOSITORY\nCommit : ${COMMIT_SHA:0:7} - $COMMIT_MESSAGE\nAuteur : $COMMIT_AUTHOR\n$error_message\n$RUN_URL" \
+            --arg text "$icon Pipeline CI Mappening : $JOB_STATUS\nDepot : $REPOSITORY\nCommit : ${COMMIT_SHA:0:7} - $COMMIT_MESSAGE\nAuteur : $COMMIT_AUTHOR\n$error_message\n$RUN_URL" \
             '{text: $text}')
           curl --fail-with-body --retry 2 \
             -H 'Content-Type: application/json; charset=UTF-8' \
             -d "$payload" \
             "$GOOGLE_CHAT_WEBHOOK_URL"
+
