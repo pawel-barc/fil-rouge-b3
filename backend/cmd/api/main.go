@@ -58,7 +58,7 @@ func main() {
 			log.Warn().Err(err).Msg("failed to load Europe/Paris timezone, using local timezone")
 			location = time.Local
 		}
-		scraperScheduler = scraping.NewScheduler(db, location, cfg.TarpinBienUserAgent)
+		scraperScheduler = scraping.NewScheduler(db, location, cfg.TarpinBienUserAgent, cfg.MediaUploadDir)
 		scraperScheduler.Start()
 		defer scraperScheduler.Stop()
 		log.Info().Msg("tarpin bien scraper scheduler started")

@@ -32,11 +32,12 @@ const (
 )
 
 type TarpinBienService struct {
-	db         *sql.DB
-	httpClient *http.Client
-	searchURL  string
-	maxPages   int
-	userAgent  string
+	db             *sql.DB
+	httpClient     *http.Client
+	searchURL      string
+	maxPages       int
+	userAgent      string
+	mediaUploadDir string
 }
 
 type TarpinBienStats struct {
@@ -158,9 +159,17 @@ func NewTarpinBienService(db *sql.DB) *TarpinBienService {
 }
 
 func NewTarpinBienServiceWithUserAgent(db *sql.DB, userAgent string) *TarpinBienService {
+	return NewTarpinBienServiceWithUploadDir(db, userAgent, "uploads")
+}
+
+func NewTarpinBienServiceWithUploadDir(db *sql.DB, userAgent string, mediaUploadDir string) *TarpinBienService {
 	userAgent = strings.TrimSpace(userAgent)
 	if userAgent == "" {
 		userAgent = defaultUserAgent
+	}
+	mediaUploadDir = strings.TrimSpace(mediaUploadDir)
+	if mediaUploadDir == "" {
+		mediaUploadDir = "uploads"
 	}
 
 	return &TarpinBienService{
@@ -168,9 +177,10 @@ func NewTarpinBienServiceWithUserAgent(db *sql.DB, userAgent string) *TarpinBien
 		httpClient: &http.Client{
 			Timeout: 20 * time.Second,
 		},
-		searchURL: tarpinBienSearchURL,
-		maxPages:  50,
-		userAgent: userAgent,
+		searchURL:      tarpinBienSearchURL,
+		maxPages:       50,
+		userAgent:      userAgent,
+		mediaUploadDir: mediaUploadDir,
 	}
 }
 
