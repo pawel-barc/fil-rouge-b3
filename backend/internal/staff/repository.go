@@ -188,6 +188,9 @@ func (r *Repository) applyTargetMutation(ctx context.Context, tx *sql.Tx, req Ac
 			SET deleted_at = COALESCE(deleted_at, NOW()), is_active = FALSE, updated_at = NOW()
 			WHERE id = $1
 		`, req.TargetID)
+		if err == nil {
+			err = softDeleteAccountRelationsInTx(ctx, tx, req.TargetID)
+		}
 	case "event_approved", "event_restored":
 		res, err = tx.ExecContext(ctx, `
 			UPDATE events
@@ -253,6 +256,59 @@ func (r *Repository) applyTargetMutation(ctx context.Context, tx *sql.Tx, req Ac
 			return err
 		}
 	}
+	return nil
+}
+
+func softDeleteAccountRelationsInTx(ctx context.Context, tx *sql.Tx, accountID int64) error {
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE users
+		SET deleted_at = COALESCE(deleted_at, NOW()), updated_at = NOW()
+		WHERE account_id = $1
+		  AND deleted_at IS NULL
+	`, accountID); err != nil {
+		return fmt.Errorf("delete staff user profiles: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE organizers
+		SET deleted_at = COALESCE(deleted_at, NOW()), updated_at = NOW()
+		WHERE user_id IN (
+			SELECT id
+			FROM users
+			WHERE account_id = $1
+		)
+		  AND deleted_at IS NULL
+	`, accountID); err != nil {
+		return fmt.Errorf("delete staff organizer memberships: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE organizations
+		SET is_active = FALSE,
+		    is_verified = FALSE,
+		    deleted_at = COALESCE(deleted_at, NOW()),
+		    updated_at = NOW()
+		WHERE account_id = $1
+		  AND deleted_at IS NULL
+	`, accountID); err != nil {
+		return fmt.Errorf("delete staff organizations: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE events
+		SET is_active = FALSE,
+		    deleted_at = COALESCE(deleted_at, NOW()),
+		    updated_at = NOW()
+		WHERE organization_id IN (
+			SELECT id
+			FROM organizations
+			WHERE account_id = $1
+		)
+		  AND deleted_at IS NULL
+	`, accountID); err != nil {
+		return fmt.Errorf("delete staff organization events: %w", err)
+	}
+
 	return nil
 }
 
@@ -432,6 +488,8 @@ func (r *Repository) listAccounts(ctx context.Context, options ListOptions) ([]A
 		clauses = append(clauses, "a.deleted_at IS NOT NULL")
 	case "pending":
 		clauses = append(clauses, "a.is_active = FALSE AND a.deleted_at IS NULL")
+	default:
+		clauses = append(clauses, "a.deleted_at IS NULL")
 	}
 	if options.Role == "moderator" {
 		clauses = append(clauses, `
@@ -492,7 +550,7 @@ func (r *Repository) listAccounts(ctx context.Context, options ListOptions) ([]A
 }
 
 func (r *Repository) listUsers(ctx context.Context, options ListOptions) ([]User, error) {
-	clauses := []string{}
+	clauses := []string{"u.deleted_at IS NULL", "a.deleted_at IS NULL"}
 	args := []any{}
 	if options.Query != "" {
 		args = append(args, "%"+strings.ToLower(strings.TrimSpace(options.Query))+"%")
@@ -506,6 +564,7 @@ func (r *Repository) listUsers(ctx context.Context, options ListOptions) ([]User
 			u.created_at, u.updated_at, u.deleted_at
 		FROM users u
 		JOIN roles r ON r.id = u.role_id
+		JOIN accounts a ON a.id = u.account_id
 	` + staffWhere(clauses) + `
 		ORDER BY u.id ASC`
 
@@ -544,6 +603,8 @@ func (r *Repository) listOrganizations(ctx context.Context, options ListOptions)
 		clauses = append(clauses, "o.is_verified = TRUE AND o.deleted_at IS NULL")
 	case "deleted":
 		clauses = append(clauses, "o.deleted_at IS NOT NULL")
+	default:
+		clauses = append(clauses, "o.deleted_at IS NULL", "a.deleted_at IS NULL")
 	}
 	query := `
 		SELECT o.id, o.account_id, o.name, o.contact_email, o.role_id,
@@ -552,6 +613,7 @@ func (r *Repository) listOrganizations(ctx context.Context, options ListOptions)
 			o.is_verified, o.is_active, o.created_at, o.updated_at, o.deleted_at,
 			COALESCE(string_agg(DISTINCT oc.slug, ',' ORDER BY oc.slug), '') AS category_slugs
 		FROM organizations o
+		JOIN accounts a ON a.id = o.account_id
 		LEFT JOIN organization_categories_links ocl ON ocl.organization_id = o.id
 		LEFT JOIN organization_categories oc ON oc.id = ocl.organization_category_id
 	` + staffWhere(clauses) + `
@@ -614,9 +676,17 @@ func (r *Repository) listOrganizations(ctx context.Context, options ListOptions)
 
 func (r *Repository) listOrganizers(ctx context.Context, options ListOptions) ([]Organizer, error) {
 	query := `
-		SELECT id, user_id, organization_id, job_role, created_at, updated_at, deleted_at
-		FROM organizers
-		ORDER BY id ASC`
+		SELECT org.id, org.user_id, org.organization_id, org.job_role,
+			org.created_at, org.updated_at, org.deleted_at
+		FROM organizers org
+		JOIN users u ON u.id = org.user_id
+		JOIN accounts a ON a.id = u.account_id
+		JOIN organizations o ON o.id = org.organization_id
+		WHERE org.deleted_at IS NULL
+		  AND u.deleted_at IS NULL
+		  AND a.deleted_at IS NULL
+		  AND o.deleted_at IS NULL
+		ORDER BY org.id ASC`
 	args := []any{}
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {

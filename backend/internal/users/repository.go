@@ -757,24 +757,35 @@ func createAccountNotification(ctx context.Context, exec notificationExecutor, a
 }
 
 func (r *Repository) Delete(ctx context.Context, userID int64) error {
-	const query = `
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin delete user tx: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	res, err := tx.ExecContext(ctx, `
 		UPDATE accounts
 		SET deleted_at = COALESCE(deleted_at, NOW()), updated_at = NOW(), is_active = FALSE
 		WHERE id = $1
 		  AND deleted_at IS NULL
-	`
-
-	res, err := r.db.ExecContext(ctx, query, userID)
+	`, userID)
 	if err != nil {
 		return fmt.Errorf("delete user: %w", err)
 	}
-
 	n, err := res.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("delete user rows affected: %w", err)
 	}
 	if n == 0 {
 		return ErrUserNotFound
+	}
+	if err := softDeleteAccountRelations(ctx, tx, userID); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delete user tx: %w", err)
 	}
 
 	return nil
@@ -824,12 +835,68 @@ func (r *Repository) DeletePreservingAdminAccess(ctx context.Context, currentUse
 	if n == 0 {
 		return nil, ErrUserNotFound
 	}
+	if err := softDeleteAccountRelations(ctx, tx, userID); err != nil {
+		return nil, err
+	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit protected delete user tx: %w", err)
 	}
 
 	return user, nil
+}
+
+func softDeleteAccountRelations(ctx context.Context, tx *sql.Tx, accountID int64) error {
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE users
+		SET deleted_at = COALESCE(deleted_at, NOW()), updated_at = NOW()
+		WHERE account_id = $1
+		  AND deleted_at IS NULL
+	`, accountID); err != nil {
+		return fmt.Errorf("delete user profiles: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE organizers
+		SET deleted_at = COALESCE(deleted_at, NOW()), updated_at = NOW()
+		WHERE user_id IN (
+			SELECT id
+			FROM users
+			WHERE account_id = $1
+		)
+		  AND deleted_at IS NULL
+	`, accountID); err != nil {
+		return fmt.Errorf("delete organizer memberships: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE organizations
+		SET is_active = FALSE,
+		    is_verified = FALSE,
+		    deleted_at = COALESCE(deleted_at, NOW()),
+		    updated_at = NOW()
+		WHERE account_id = $1
+		  AND deleted_at IS NULL
+	`, accountID); err != nil {
+		return fmt.Errorf("delete organizations: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE events
+		SET is_active = FALSE,
+		    deleted_at = COALESCE(deleted_at, NOW()),
+		    updated_at = NOW()
+		WHERE organization_id IN (
+			SELECT id
+			FROM organizations
+			WHERE account_id = $1
+		)
+		  AND deleted_at IS NULL
+	`, accountID); err != nil {
+		return fmt.Errorf("delete organization events: %w", err)
+	}
+
+	return nil
 }
 
 func (r *Repository) Deactivate(ctx context.Context, userID int64) error {
