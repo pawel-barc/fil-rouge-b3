@@ -180,7 +180,9 @@ async function mockApi(page: Page) {
     }),
   );
   await page.route("**/api/notification-types", (route) =>
-    route.fulfill({ json: [{ id: 1, slug: "organization_validated", label: "Validation" }] }),
+    route.fulfill({
+      json: [{ id: 1, name: "Validation", slug: "organization_approved" }],
+    }),
   );
   await page.route("**/api/me/organizations", (route) =>
     route.fulfill({ json: [organization] }),
