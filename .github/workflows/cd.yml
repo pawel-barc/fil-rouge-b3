@@ -87,7 +87,7 @@ jobs:
           SSH_TARGET="${PROD_SSH_USER}@${PROD_SSH_HOST}"
 
           ssh -i ~/.ssh/mappening_deploy_key -p "$SSH_PORT" "$SSH_TARGET" \
-            "mkdir -p ${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/frontend ${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/backend/migrations"
+            "mkdir -p ${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/frontend ${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/migrations"
 
           rsync -az --delete -e "ssh -i ~/.ssh/mappening_deploy_key -p $SSH_PORT" \
             frontend/dist/ "$SSH_TARGET:${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/frontend/"
@@ -97,7 +97,7 @@ jobs:
             "$SSH_TARGET:${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/"
 
           rsync -az --delete -e "ssh -i ~/.ssh/mappening_deploy_key -p $SSH_PORT" \
-            backend/migrations/ "$SSH_TARGET:${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/backend/migrations/"
+            backend/migrations/ "$SSH_TARGET:${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/migrations/"
 
       - name: Activate release
         shell: bash
