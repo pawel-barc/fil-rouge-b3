@@ -1,0 +1,129 @@
+name: CD
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - CI
+    branches:
+      - main
+      - master
+    types:
+      - completed
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    env:
+      API_BINARY: mappening-api
+      MIGRATE_BINARY: mappening-migrate
+      DEPLOY_ROOT: /var/www/mappening
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      SERVICE_NAME: mappening-api
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build API binaries
+        working-directory: backend
+        shell: bash
+        run: |
+          mkdir -p ../dist-server
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o "../dist-server/${API_BINARY}" ./cmd/api
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o "../dist-server/${MIGRATE_BINARY}" ./cmd/migrate
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Prepare SSH key
+        shell: bash
+        env:
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
+          PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          test -n "$PROD_SSH_KEY"
+          test -n "$PROD_SSH_HOST"
+          test -n "$PROD_SSH_USER"
+          SSH_PORT="${PROD_SSH_PORT:-22}"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$PROD_SSH_KEY" > ~/.ssh/mappening_deploy_key
+          chmod 600 ~/.ssh/mappening_deploy_key
+          ssh-keyscan -p "$SSH_PORT" -H "$PROD_SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload release files
+        shell: bash
+        env:
+          PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
+        run: |
+          SSH_PORT="${PROD_SSH_PORT:-22}"
+          SSH_TARGET="${PROD_SSH_USER}@${PROD_SSH_HOST}"
+
+          ssh -i ~/.ssh/mappening_deploy_key -p "$SSH_PORT" "$SSH_TARGET" \
+            "mkdir -p ${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/frontend ${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/backend/migrations"
+
+          rsync -az --delete -e "ssh -i ~/.ssh/mappening_deploy_key -p $SSH_PORT" \
+            frontend/dist/ "$SSH_TARGET:${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/frontend/"
+
+          rsync -az -e "ssh -i ~/.ssh/mappening_deploy_key -p $SSH_PORT" \
+            dist-server/${API_BINARY} dist-server/${MIGRATE_BINARY} \
+            "$SSH_TARGET:${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/"
+
+          rsync -az --delete -e "ssh -i ~/.ssh/mappening_deploy_key -p $SSH_PORT" \
+            backend/migrations/ "$SSH_TARGET:${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/backend/migrations/"
+
+      - name: Activate release
+        shell: bash
+        env:
+          PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
+        run: |
+          SSH_PORT="${PROD_SSH_PORT:-22}"
+          SSH_TARGET="${PROD_SSH_USER}@${PROD_SSH_HOST}"
+
+          ssh -i ~/.ssh/mappening_deploy_key -p "$SSH_PORT" "$SSH_TARGET" "
+            set -e
+            chmod +x ${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/${API_BINARY}
+            chmod +x ${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/${MIGRATE_BINARY}
+
+            cd ${DEPLOY_ROOT}/releases/${DEPLOY_SHA}
+            set -a
+            . ${DEPLOY_ROOT}/.env.production
+            set +a
+            ./mappening-migrate
+
+            ln -sfn ${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/${API_BINARY} ${DEPLOY_ROOT}/${API_BINARY}
+            rsync -a --delete ${DEPLOY_ROOT}/releases/${DEPLOY_SHA}/frontend/ ${DEPLOY_ROOT}/frontend/
+
+            systemctl restart ${SERVICE_NAME}
+            systemctl is-active --quiet ${SERVICE_NAME}
+            curl --fail http://127.0.0.1:8081/api/health
+          "
