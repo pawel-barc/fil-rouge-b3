@@ -125,5 +125,11 @@ jobs:
 
             systemctl restart ${SERVICE_NAME}
             systemctl is-active --quiet ${SERVICE_NAME}
-            curl --fail http://127.0.0.1:8081/api/health
+            for attempt in 1 2 3 4 5; do
+              if curl --fail http://127.0.0.1:8081/api/health; then
+                exit 0
+              fi
+              sleep 2
+            done
+            exit 1
           "
