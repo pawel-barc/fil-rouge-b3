@@ -91,7 +91,7 @@ func (s *TarpinBienService) optimizeScrapedImage(ctx context.Context, sourceURL 
 		return scrapedImageResult{}, err
 	}
 
-	storage := media.NewLocalStorage("uploads")
+	storage := media.NewLocalStorage(s.mediaUploadDir)
 	baseName := imageCacheKey(sourceURL)
 
 	if contentType == "image/webp" {

@@ -1,10 +1,15 @@
 @use "../../../shared/styles/tokens" as *;
 @use "../../../shared/styles/mixins" as *;
 
-.moderator-queue-grid,
-.moderator-suspended-groups {
+.moderator-queue-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.moderator-suspended-groups {
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 18px;
 }
 
@@ -58,16 +63,24 @@
 
   .admin-table--suspended .admin-table__row {
     grid-template-columns:
-      minmax(170px, 1.1fr) minmax(120px, 0.6fr) minmax(130px, 0.65fr)
-      minmax(190px, 1fr) minmax(150px, 0.75fr);
-    align-items: start;
-    width: max-content;
+      minmax(190px, 1.2fr) minmax(120px, 0.6fr) minmax(150px, 0.7fr)
+      minmax(220px, 1.1fr) minmax(170px, 0.8fr);
+    align-items: center;
+    width: 100%;
   }
 
   .admin-table--suspended .moderator-account-row--with-role {
     grid-template-columns:
-      minmax(170px, 1.1fr) minmax(130px, 0.65fr) minmax(190px, 1fr)
-      minmax(150px, 0.75fr);
+      minmax(190px, 1.2fr) minmax(120px, 0.6fr) minmax(150px, 0.7fr)
+      minmax(220px, 1.1fr) minmax(170px, 0.8fr);
+  }
+
+  .admin-table--suspended .moderator-account-role {
+    position: static;
+    top: auto;
+    right: auto;
+    max-width: none;
+    justify-self: start;
   }
 
   .admin-table--organizers .admin-table__row {

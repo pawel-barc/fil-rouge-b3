@@ -26,7 +26,7 @@ const adminTabs = [
     Icon: ShieldCheck,
     sectionTitles: {
       [ROUTES.ADMIN.DASHBOARD]: "Gestion des comptes",
-      [ROUTES.ADMIN.EVENTS]: "Gestion des evenements",
+      [ROUTES.ADMIN.EVENTS]: "Gestion des événements",
     },
     end: true,
   },
@@ -43,7 +43,7 @@ const adminTabs = [
     Icon: ShieldAlert,
     sectionTitles: {
       [ROUTES.MODERATOR.DASHBOARD]: "Moderation des utilisateurs",
-      [ROUTES.MODERATOR.EVENTS]: "Moderation des evenements",
+      [ROUTES.MODERATOR.EVENTS]: "Modération des événements",
       [ROUTES.MODERATOR.ORGANIZATIONS]: "Moderation des organizations",
       [ROUTES.MODERATOR.ACCOUNTS]: "Moderation des utilisateurs",
       [ROUTES.MODERATOR.REPORTS]: "Signalements",

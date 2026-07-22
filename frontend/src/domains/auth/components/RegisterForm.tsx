@@ -14,6 +14,7 @@ import type { Role } from "../../user/types/user";
 import { authHttpApi } from "../api/authHttp.api";
 import useAuthStore from "../store/authStore";
 import {
+  adminRegisterSchema,
   registerSchema,
   type RegisterFormData,
 } from "../validations/register.schema";
@@ -39,17 +40,28 @@ export default function RegisterForm({
   const login = useAuthStore((s) => s.login);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const isAdminMode = mode === "admin";
+  const usernamePlaceholder = isAdminMode ? "Nom du compte" : "Votre nom";
+  const emailPlaceholder = isAdminMode ? "Email du compte" : "Votre email";
+  const passwordPlaceholder = isAdminMode
+    ? "Mot de passe temporaire"
+    : "Votre mot de passe";
+  const confirmPasswordPlaceholder = isAdminMode
+    ? "Confirmer le mot de passe temporaire"
+    : "Confirmer votre mot de passe";
 
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<RegisterFormData>({
-    resolver: zodResolver(registerSchema),
+    resolver: zodResolver(isAdminMode ? adminRegisterSchema : registerSchema),
     mode: "onTouched",
   });
 
   const onSubmit = async (data: RegisterFormData) => {
+    if (loading) return;
+
     const loginEmail = data.login_email.trim();
     const username = data.username.trim();
 
@@ -72,7 +84,7 @@ export default function RegisterForm({
           return;
         }
 
-        toast.success("Compte cree avec succes");
+        toast.success("Compte créé avec succès");
         onSuccess?.();
         return;
       }
@@ -89,7 +101,7 @@ export default function RegisterForm({
       }
 
       login(result.data);
-      toast.success("Compte cree avec succes");
+      toast.success("Compte créé avec succès");
       navigate(ROUTES.PUBLIC.HOME, { replace: true });
     } catch {
       setServerError(
@@ -103,8 +115,10 @@ export default function RegisterForm({
   };
 
   return (
-    <div className={mode === "admin" ? "admin-embedded-form" : undefined}>
-      <h1>{title}</h1>
+    <div className={isAdminMode ? "admin-embedded-form" : undefined}>
+      <h1 className={isAdminMode ? "admin-embedded-form__title" : undefined}>
+        {title}
+      </h1>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <FormField
@@ -116,7 +130,7 @@ export default function RegisterForm({
             id="username"
             type="text"
             autoComplete="username"
-            placeholder="Votre nom"
+            placeholder={usernamePlaceholder}
             hasError={!!errors.username}
             {...register("username")}
           />
@@ -131,7 +145,7 @@ export default function RegisterForm({
             id="email"
             type="email"
             autoComplete="email"
-            placeholder="Votre email"
+            placeholder={emailPlaceholder}
             hasError={!!errors.login_email}
             aria-describedby="email-error"
             {...register("login_email")}
@@ -147,7 +161,7 @@ export default function RegisterForm({
             id="password"
             type="password"
             autoComplete="new-password"
-            placeholder="Votre mot de passe"
+            placeholder={passwordPlaceholder}
             hasError={!!errors.password}
             aria-describedby="password-error"
             {...register("password")}
@@ -163,7 +177,7 @@ export default function RegisterForm({
             id="confirmPassword"
             type="password"
             autoComplete="new-password"
-            placeholder="Confirmer votre mot de passe"
+            placeholder={confirmPasswordPlaceholder}
             hasError={!!errors.confirmPassword}
             aria-describedby="confirmPassword-error"
             {...register("confirmPassword")}
@@ -174,7 +188,7 @@ export default function RegisterForm({
 
         <div className="admin-actions">
           <Button type="submit" loading={loading}>
-            {submitLabel ?? "Creer un compte utilisateur"}
+            {submitLabel ?? "Créer un compte utilisateur"}
           </Button>
           {onCancel && (
             <Button

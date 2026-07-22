@@ -24,6 +24,7 @@ import {
   type OrganizationFormErrors,
 } from "../utils/organizationWorkflow";
 import type { OrganizationCategoryName } from "../types/organization-categories";
+import { getOrganizationCategoryLabel } from "../types/organization-categories";
 
 export default function OrganizationsPage() {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -197,7 +198,7 @@ export default function OrganizationsPage() {
       />
 
       {userOrganizations.length === 0 ? (
-        <EmptyState message="Aucune organisation rattachee à votre compte." />
+        <EmptyState message="Aucune organisation rattachée à votre compte." />
       ) : (
         <div className="organization-card-grid">
           {userOrganizations.map((organization) => {
@@ -236,7 +237,11 @@ export default function OrganizationsPage() {
                           <dt>Catégorie</dt>
                           <dd className="organization-card__categories">
                             {organization.category_slugs.map((category) => (
-                              <span key={category}>{category}</span>
+                              <span key={category}>
+                                {getOrganizationCategoryLabel(
+                                  category as OrganizationCategoryName,
+                                )}
+                              </span>
                             ))}
                           </dd>
                         </div>

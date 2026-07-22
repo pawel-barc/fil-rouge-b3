@@ -1,5 +1,8 @@
 import Button from "../../../shared/components/ui/Button";
-import type { EventCategory } from "../../event/types/event-categories";
+import {
+  getEventCategoryLabel,
+  type EventCategory,
+} from "../../event/types/event-categories";
 
 type Props = {
   category: EventCategory;
@@ -17,7 +20,7 @@ export default function PreferenceCard({ category, selected, onClick }: Props) {
       variant="secondary"
       onClick={onClick}
     >
-      {category}
+      {getEventCategoryLabel(category)}
     </Button>
   );
 }

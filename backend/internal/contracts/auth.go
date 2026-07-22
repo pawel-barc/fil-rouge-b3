@@ -24,9 +24,8 @@ type LoginRequestDTO struct {
 }
 
 type LoginResponseDTO struct {
-	OK        bool        `json:"ok"`
-	User      AuthUserDTO `json:"user"`
-	CSRFToken string      `json:"csrf_token,omitempty"`
+	OK   bool        `json:"ok"`
+	User AuthUserDTO `json:"user"`
 }
 
 type RegisterUserRequestDTO struct {

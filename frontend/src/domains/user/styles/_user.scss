@@ -35,19 +35,13 @@
 }
 
 .account-shell--role-header {
-  position: fixed;
-  top: 0;
-  left: 50%;
+  position: relative;
   z-index: 60;
-  transform: translateX(-50%);
-  width: min(100vw, 1040px);
-  max-height: 100svh;
+  width: min(100%, 1040px);
   max-width: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: visible;
   background: var(--bg);
   padding-bottom: 16px;
-  width: 100%;
 
   .account-shell__header,
   .account-shell__sticky {
@@ -87,7 +81,7 @@
 }
 
 .account-shell__role-header-spacer {
-  width: 100%;
+  display: none;
 }
 
 .account-shell__header {
@@ -308,6 +302,10 @@
 
 .account-summary__meta--staff {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  .account-summary__member-since {
+    grid-column: auto;
+  }
 
   span {
     gap: 8px;

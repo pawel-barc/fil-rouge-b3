@@ -9,8 +9,8 @@ import HeaderUser from "./HeaderUser";
 
 const accountTypeLabels = {
   admin: "Compte administrateur",
-  moderator: "Compte moderateur",
-  organization: "Utilisateur organisateur",
+  moderator: "Compte modérateur",
+  organization: "Compte organisateur",
   user: "Compte utilisateur",
 } as const;
 
@@ -27,7 +27,7 @@ export default function Header({
 
   if (!isAuthenticated) return <HeaderPublic />;
 
-  const accountType = role ? accountTypeLabels[role] : "Compte connecte";
+  const accountType = role ? accountTypeLabels[role] : "Compte connecté";
 
   const headerByRole = () => {
     if (role === "admin") {
@@ -52,7 +52,7 @@ export default function Header({
   return (
     <>
       {role !== "admin" && role !== "moderator" && (
-        <div className="account-type-badge" aria-label="Type de compte connecte">
+        <div className="account-type-badge" aria-label="Type de compte connecté">
           {accountType}
         </div>
       )}

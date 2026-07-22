@@ -44,7 +44,7 @@ export default function EventPopup({ event, onImageError }: Props) {
 
         <h3>{event.title}</h3>
         <p>
-          <strong>Horaires de l'evenement :</strong> {formatEventDateRange(event)}
+          <strong>Horaires de l'événement :</strong> {formatEventDateRange(event)}
         </p>
         <p>
           <strong>Lieu :</strong> {event.address}, {event.city}{" "}

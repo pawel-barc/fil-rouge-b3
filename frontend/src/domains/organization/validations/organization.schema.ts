@@ -46,6 +46,6 @@ export const organizationFormSchema = z.object({
     ),
   categories: z
     .array(z.enum(CATEGORIES))
-    .min(1, "Selectionnez au moins une categorie"),
+    .min(1, "Sélectionnez au moins une catégorie"),
 });
 

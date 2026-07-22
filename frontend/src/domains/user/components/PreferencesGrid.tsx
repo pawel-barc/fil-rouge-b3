@@ -16,7 +16,7 @@ export default function PreferencesGrid({ selected, toggle }: Props) {
     <div
       className="preferences-grid"
       role="group"
-      aria-label="Preferences d'evenements"
+      aria-label="Préférences d'événements"
     >
       {SORTED_EVENT_CATEGORIES.map((category) => (
         <PreferenceCard

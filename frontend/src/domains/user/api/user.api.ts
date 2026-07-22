@@ -1,6 +1,5 @@
 import type { ApiResult } from "../../../shared/api/api.types";
 import { apiRequest } from "../../../shared/api/httpClient";
-import { toLocalApiId } from "../../../shared/api/idMapping";
 import type { Notification } from "../../notification/types/notification";
 import type { NotificationType } from "../../notification/types/notification";
 import type { EventCategoryName } from "../../event/types/event-categories";
@@ -46,24 +45,18 @@ type ForgotPasswordResponse = {
 const normalizePreference = (
   preference: BackendEventPreference,
 ): UserEventPreference => ({
-  id: toLocalApiId(preference.id) ?? preference.id,
-  user_id: toLocalApiId(preference.user_id) ?? preference.user_id,
+  id: preference.id,
+  user_id: preference.user_id,
   event_category_id: preference.event_category_id,
   category_slug: preference.category_slug,
 });
 
 const normalizeNotification = (notification: Notification): Notification => ({
   ...notification,
-  id: toLocalApiId(notification.id) ?? notification.id,
-  user_id: toLocalApiId(notification.user_id) ?? notification.user_id,
-  event_id:
-    notification.event_id != null
-      ? toLocalApiId(notification.event_id)
-      : notification.event_id,
-  organization_id:
-    notification.organization_id != null
-      ? toLocalApiId(notification.organization_id)
-      : notification.organization_id,
+  id: notification.id,
+  user_id: notification.user_id,
+  event_id: notification.event_id,
+  organization_id: notification.organization_id,
 });
 
 const toApiList = <Item>(items: Item[] | null | undefined): Item[] =>
@@ -82,7 +75,7 @@ const normalizeAuthUser = (user: BackendAuthUser): AuthenticatedUser => {
     .filter(Boolean)
     .join(" ");
   const loginEmail = user.login_email ?? user.email;
-  const accountId = toLocalApiId(user.account_id ?? user.id) ?? user.id;
+  const accountId = user.account_id ?? user.id;
 
   return {
     id: accountId,
@@ -93,8 +86,8 @@ const normalizeAuthUser = (user: BackendAuthUser): AuthenticatedUser => {
     username: user.username || displayName || loginEmail.split("@")[0] || loginEmail,
     is_active: user.is_active,
     created_at: user.created_at,
-    user_id: toLocalApiId(user.user_id ?? user.id),
-    organization_id: toLocalApiId(user.organization_id),
+    user_id: user.user_id ?? user.id,
+    organization_id: user.organization_id,
     auth_source: "api",
   };
 };

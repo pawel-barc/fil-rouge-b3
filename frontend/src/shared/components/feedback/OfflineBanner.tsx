@@ -11,7 +11,7 @@ export default function OfflineBanner() {
   return (
     <div className="offline-banner" role="status" aria-live="polite">
       <WifiOff size={18} aria-hidden="true" />
-      <span>Vous etes hors ligne. Certaines donnees peuvent ne pas etre a jour.</span>
+      <span>Vous êtes hors ligne. Certaines données peuvent ne pas être à jour.</span>
     </div>
   );
 }

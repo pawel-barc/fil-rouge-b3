@@ -59,7 +59,7 @@ export default function ChangePassword() {
       }
 
       logout();
-      toast.success("Mot de passe mis a jour. Reconnectez-vous.");
+      toast.success("Mot de passe mis à jour. Reconnectez-vous.");
       navigate(ROUTES.PUBLIC.LOGIN);
     } catch {
       setServerError("Erreur lors du changement de mot de passe");

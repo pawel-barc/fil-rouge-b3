@@ -42,6 +42,7 @@ import type { Event } from "../../event/types/event";
 import type { Organization } from "../../organization/types/organization";
 import {
   CATEGORIES as ORGANIZATION_CATEGORIES,
+  getOrganizationCategoryLabel,
   type OrganizationCategoryName,
 } from "../../organization/types/organization-categories";
 import type {
@@ -152,8 +153,8 @@ const viewContent: Record<
     description: "Creation, modification et suppression des comptes applicatifs.",
   },
   events: {
-    title: "Gestion des evenements",
-    description: "Creation, modification et suivi des evenements du site.",
+    title: "Gestion des événements",
+    description: "Création, modification et suivi des événements du site.",
   },
 };
 
@@ -168,13 +169,13 @@ type AccountRoleFilter = AccountLoginRole | "organizer" | "all";
 
 const accountLoginCreateLabels: Record<AccountLoginRole, string> = {
   user: "utilisateur",
-  moderator: "moderateur",
+  moderator: "modérateur",
   admin: "administrateur",
 };
 
 const getAdminAccountRoleLabel = (account: AccountSummary) =>
   account.organization_id
-    ? "Utilisateur organisateur"
+    ? "Organisateur"
     : accountRoleLabels[account.role];
 
 const normalizeText = (value: string) =>
@@ -434,6 +435,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     useState<AdminDecisionRequest | null>(null);
   const [decisionReason, setDecisionReason] = useState("");
   const [decisionReasonError, setDecisionReasonError] = useState("");
+  const [isDecisionSubmitting, setIsDecisionSubmitting] = useState(false);
 
   const activeOrganizationsData = organizationsData.filter((organization) => !organization.deleted_at);
   const hasDuplicateAccountEmail = (email: string, currentAccountId?: number) =>
@@ -503,16 +505,19 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     setDecisionRequest(request);
     setDecisionReason("");
     setDecisionReasonError("");
+    setIsDecisionSubmitting(false);
   };
 
   const closeDecisionModal = () => {
+    if (isDecisionSubmitting) return;
+
     setDecisionRequest(null);
     setDecisionReason("");
     setDecisionReasonError("");
   };
 
   const confirmDecision = async () => {
-    if (!decisionRequest) return;
+    if (!decisionRequest || isDecisionSubmitting) return;
 
     const reason = decisionReason.trim();
 
@@ -521,21 +526,28 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       return;
     }
 
-    const result = await decisionRequest.onConfirm(reason);
+    setIsDecisionSubmitting(true);
+    try {
+      const result = await decisionRequest.onConfirm(reason);
+      if (result === false) return;
 
-    if (result === false) return;
+      const recorded = await recordDecision(
+        decisionRequest.action,
+        decisionRequest.targetType,
+        decisionRequest.targetId,
+        reason,
+      );
+      if (recorded === false) return;
 
-    const recorded = await recordDecision(
-      decisionRequest.action,
-      decisionRequest.targetType,
-      decisionRequest.targetId,
-      reason,
-    );
-    if (recorded === false) return;
-    if (decisionRequest.successMessage) {
-      toast.success(decisionRequest.successMessage);
+      if (decisionRequest.successMessage) {
+        toast.success(decisionRequest.successMessage);
+      }
+      setDecisionRequest(null);
+      setDecisionReason("");
+      setDecisionReasonError("");
+    } finally {
+      setIsDecisionSubmitting(false);
     }
-    closeDecisionModal();
   };
 
   const filteredUsers = useMemo(
@@ -725,17 +737,17 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       }
 
       if (userDraft.role === "organization") {
-        toast.error("Utilisez le formulaire organisateur pour creer une organization");
+        toast.error("Utilisez le formulaire organisateur pour créer une organisation");
         return false;
       }
 
       if (hasDuplicateAccountEmail(loginEmail)) {
-        toast.error("Cet email est deja utilise");
+        toast.error("Cet email est déjà utilisé");
         return false;
       }
 
       if (hasDuplicateUsername(displayName)) {
-        toast.error("Ce nom d'utilisateur est deja utilise");
+        toast.error("Ce nom d'utilisateur est déjà utilisé");
         return false;
       }
 
@@ -757,7 +769,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
 
       setIsCreatingUser(false);
       setUserDraft(null);
-      toast.success("Compte cree");
+      toast.success("Compte créé");
       return true;
     }
 
@@ -825,7 +837,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       }
 
       if (organizationDraft.category_slugs.length === 0) {
-        toast.error("Selectionnez au moins une categorie");
+        toast.error("Sélectionnez au moins une catégorie");
         return false;
       }
 
@@ -835,18 +847,18 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
           editedAccount.organization_id,
         )
       ) {
-        toast.error("Cet email de contact est deja utilise");
+        toast.error("Cet email de contact est déjà utilisé");
         return false;
       }
 
       if (hasDuplicateOrganizationSiret(siret, editedAccount.organization_id)) {
-        toast.error("Ce SIRET est deja utilise");
+        toast.error("Ce SIRET est déjà utilisé");
         return false;
       }
     }
 
     if (hasDuplicateAccountEmail(loginEmail, editingUserId)) {
-      toast.error("Cet email est deja utilise");
+      toast.error("Cet email est déjà utilisé");
       return false;
     }
 
@@ -855,7 +867,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       editedAccount.user_id &&
       hasDuplicateUsername(displayName, editedAccount.user_id)
     ) {
-      toast.error("Ce nom d'utilisateur est deja utilise");
+      toast.error("Ce nom d'utilisateur est déjà utilisé");
       return false;
     }
 
@@ -891,7 +903,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       setEditingUserId(null);
       setUserDraft(null);
       setOrganizationDraft(null);
-      toast.success("Compte mis a jour");
+      toast.success("Compte mis à jour");
       return true;
     }
 
@@ -917,7 +929,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       setEditingUserId(null);
       setUserDraft(null);
       setOrganizationDraft(null);
-      toast.success("Compte mis a jour");
+      toast.success("Compte mis à jour");
       return true;
     }
 
@@ -974,7 +986,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     }
 
     if (eventDraft.is_active && selectedOrganization && !selectedOrganization.is_active) {
-      toast.error("Impossible de publier un evenement d'une organization inactive");
+      toast.error("Impossible de publier un événement d'une organisation inactive");
       return false;
     }
 
@@ -999,7 +1011,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     }
 
     if (eventDraft.category_slugs.length === 0) {
-      toast.error("Selectionnez au moins une categorie");
+      toast.error("Sélectionnez au moins une catégorie");
       return false;
     }
 
@@ -1077,14 +1089,14 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         }
 
         addEvent(result.data);
-        toast.success("Evenement cree");
+        toast.success("Événement créé");
         setEditingEventId(null);
         setIsCreatingEvent(false);
         setEventDraft(null);
         return true;
       }
 
-      toast.error("Session API requise pour creer un evenement");
+      toast.error("Session API requise pour créer un événement");
       return false;
     } else if (editingEventId) {
       const event = eventsData.find((item) => item.id === editingEventId);
@@ -1099,7 +1111,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
         }
 
         updateEvent(editingEventId, result.data);
-        toast.success("Evenement mis a jour");
+        toast.success("Événement mis à jour");
         setEditingEventId(null);
         setIsCreatingEvent(false);
         setEventDraft(null);
@@ -1121,7 +1133,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
     if (!deletedEvent) return false;
 
     if (currentUser?.auth_source !== "api") {
-      toast.error("Session API requise pour supprimer un evenement");
+      toast.error("Session API requise pour supprimer un événement");
       return false;
     }
 
@@ -1222,7 +1234,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       end: true,
     },
     {
-      label: "Evenements",
+      label: "Événements",
       to: ROUTES.ADMIN.EVENTS,
       value: staffSummary.events.total,
     },
@@ -1412,7 +1424,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       {isEventsView && (
         <section className="admin-panel__grid">
           <article className="admin-section">
-            <Toolbar ariaLabel="Filtres des evenements" className="admin-toolbar">
+            <Toolbar ariaLabel="Filtres des événements" className="admin-toolbar">
               <label>
                 Rechercher
                 <Input
@@ -1482,11 +1494,11 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
             </Toolbar>
 
             <p className="admin-results-count">
-              {filteredEvents.length} evenement{filteredEvents.length > 1 ? "s" : ""}
+              {filteredEvents.length} événement{filteredEvents.length > 1 ? "s" : ""}
             </p>
 
             {filteredEvents.length === 0 ? (
-              <EmptyState message="Aucun evenement ne correspond aux filtres." />
+              <EmptyState message="Aucun événement ne correspond aux filtres." />
             ) : (
               <div className="admin-table admin-table--events" role="table" aria-label="Événements">
                 <div role="rowgroup">
@@ -1563,7 +1575,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
                                     targetId: event.id,
                                     targetType: "event",
                                     title: `Justifier la suppression de ${event.title}`,
-                                    successMessage: `${event.title} supprime`,
+                                    successMessage: `${event.title} supprimé`,
                                     onConfirm: () => deleteEvent(event.id),
                                   })
                                 }
@@ -1612,7 +1624,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
               mode="admin"
               role={accountCreateRole}
               title={`Ajouter un compte ${accountLoginCreateLabels[accountCreateRole]}`}
-              submitLabel={`Creer le compte ${accountLoginCreateLabels[accountCreateRole]}`}
+              submitLabel={`Créer le compte ${accountLoginCreateLabels[accountCreateRole]}`}
               onCancel={closeUserForm}
               onSuccess={() => {
                 closeUserForm();
@@ -1655,14 +1667,14 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       </FormModal>
 
       <FormModal
-        ariaLabel={isCreatingEvent ? "Ajouter un evenement" : "Modifier un evenement"}
+        ariaLabel={isCreatingEvent ? "Ajouter un événement" : "Modifier un événement"}
         open={!!eventDraft && (isCreatingEvent || editingEventId !== null)}
         size="lg"
         onClose={closeEventForm}
       >
         {eventDraft && (
           <div className="admin-create-account">
-            <h2>{isCreatingEvent ? "Ajouter un evenement" : "Modifier un evenement"}</h2>
+            <h2>{isCreatingEvent ? "Ajouter un événement" : "Modifier un événement"}</h2>
             <EventEditor
               draft={eventDraft}
               organizations={activeOrganizationsData}
@@ -1675,6 +1687,7 @@ export default function AdminDashboard({ view = "dashboard" }: AdminDashboardPro
       </FormModal>
       <DecisionReasonModal
         error={decisionReasonError}
+        loading={isDecisionSubmitting}
         open={!!decisionRequest}
         reason={decisionReason}
         title={decisionRequest?.title ?? "Justifier la decision"}
@@ -1878,12 +1891,12 @@ function OrganizationEditor({
         onChange={(event) => updateField("is_verified", event.target.checked)}
       />
       <div className="admin-form-grid__wide">
-        <CheckboxGroup label="Categories" labelId="admin-organization-categories">
+        <CheckboxGroup label="Catégories" labelId="admin-organization-categories">
           {ORGANIZATION_CATEGORIES.map((category) => (
             <Checkbox
               checked={draft.category_slugs.includes(category)}
               key={category}
-              label={category}
+              label={getOrganizationCategoryLabel(category)}
               onChange={() => toggleCategory(category)}
             />
           ))}

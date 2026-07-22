@@ -84,7 +84,7 @@ export default function UserProfileForm() {
         newPassword: "",
         confirmPassword: "",
       });
-      toast.success("Profil mis a jour");
+      toast.success("Profil mis à jour");
       return;
 
     } catch {
@@ -105,7 +105,7 @@ export default function UserProfileForm() {
     }
 
     logout();
-    toast.success("Compte supprime");
+    toast.success("Compte supprimé");
     navigate(ROUTES.PUBLIC.LOGIN);
   };
 
@@ -192,7 +192,7 @@ export default function UserProfileForm() {
 
       <ConfirmDialog
         confirmLabel="Oui, supprimer"
-        message="Cette action est definitive. Toutes vos donnees seront supprimees."
+        message="Cette action est définitive. Toutes vos données seront supprimées."
         open={showDeleteModal}
         title="Suppression du compte"
         onCancel={() => setShowDeleteModal(false)}

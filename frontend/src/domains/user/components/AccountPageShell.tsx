@@ -96,6 +96,13 @@ const accountSections = [
 ] as const;
 
 const organizerOnlySections: AccountSection[] = ["organizations", "events"];
+const organizationSections: AccountSection[] = [
+  "profile",
+  "preferences",
+  "notifications",
+  "organizations",
+  "events",
+];
 
 const getActiveAccountSection = (pathname: string): AccountSection => {
   const activeSection = accountSections.find((section) => section.route === pathname);
@@ -177,7 +184,11 @@ export default function AccountPageShell() {
     accountSections.find((section) => section.key === activeSection)?.title ??
     "Compte";
   const visibleAccountSections =
-    currentUser?.role === "user" || currentUser?.role === "organization"
+    currentUser?.role === "organization"
+      ? accountSections.filter((section) =>
+          organizationSections.includes(section.key),
+        )
+      : currentUser?.role === "user"
       ? accountSections.filter(
           (section) => hasOrganizations || !organizerOnlySections.includes(section.key),
         )

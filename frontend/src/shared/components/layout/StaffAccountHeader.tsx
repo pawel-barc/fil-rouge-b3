@@ -124,7 +124,7 @@ export default function StaffAccountHeader({
               <span className="account-summary__role">{roleLabel}</span>
             </div>
             <Button
-              aria-label="Se deconnecter"
+              aria-label="Se déconnecter"
               className="account-summary__logout"
               icon={<LogOut size={17} aria-hidden="true" />}
               type="button"

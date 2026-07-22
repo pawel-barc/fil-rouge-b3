@@ -11,14 +11,28 @@ const passwordSchema = z
   .regex(/[0-9]/, "Un chiffre requis")
   .regex(/[^a-zA-Z0-9]/, "Un caractere special requis");
 
+const registerSchemaShape = {
+  username: z.string().min(2, "Nom d'utilisateur trop court"),
+  login_email: z
+    .email({ message: "Format d'email invalide" })
+    .nonempty("Email requis"),
+  password: passwordSchema,
+  confirmPassword: z.string().min(1, "Confirmation requise"),
+};
+
 export const registerSchema = z
   .object({
-    username: z.string().min(2, "Nom d'utilisateur trop court"),
-    login_email: z
-      .email({ message: "Format d'email invalide" })
-      .nonempty("Email requis"),
-    password: passwordSchema,
-    confirmPassword: z.string().min(1, "Confirmation requise"),
+    ...registerSchemaShape,
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Les mots de passe ne correspondent pas",
+    path: ["confirmPassword"],
+  });
+
+export const adminRegisterSchema = z
+  .object({
+    ...registerSchemaShape,
+    password: passwordSchema.min(12, "Minimum 12 caracteres"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Les mots de passe ne correspondent pas",
@@ -29,7 +43,7 @@ export type RegisterFormData = z.infer<typeof registerSchema>;
 
 export const organizationRegisterSchema = z
   .object({
-    name: z.string().min(2, "Nom de l'organization requis"),
+    name: z.string().min(2, "Nom de l'organisation requis"),
     member_name: z.string().min(2, "Nom du membre requis").max(50, "Nom trop long"),
     member_job_role: z
       .string()
@@ -61,7 +75,7 @@ export const organizationRegisterSchema = z
     siret: z.string().regex(/^\d{14}$/, "Le SIRET doit contenir 14 chiffres"),
     categories: z
       .array(z.enum(CATEGORIES))
-      .min(1, "Selectionnez au moins une categorie"),
+      .min(1, "Sélectionnez au moins une catégorie"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Les mots de passe ne correspondent pas",

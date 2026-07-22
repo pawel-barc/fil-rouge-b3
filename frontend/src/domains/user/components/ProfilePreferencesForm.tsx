@@ -39,7 +39,7 @@ export default function ProfilePreferences() {
 
   const handleSave = async () => {
     if (preferences.length === 0) {
-      setError("Selectionnez au moins une preference.");
+      setError("Sélectionnez au moins une préférence.");
       return;
     }
 
@@ -50,7 +50,7 @@ export default function ProfilePreferences() {
     }
 
     setUserEventPreferences(userId, result.data);
-    toast.success("Preferences mises a jour");
+    toast.success("Préférences mises à jour");
     navigate(ROUTES.USER.PROFILE);
   };
 

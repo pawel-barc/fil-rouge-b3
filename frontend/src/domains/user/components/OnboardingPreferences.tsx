@@ -30,7 +30,7 @@ export default function Onboarding() {
     if (!user?.user_id) return;
 
     if (preferences.length === 0) {
-      setError("Selectionnez au moins une preference pour continuer.");
+      setError("Sélectionnez au moins une préférence pour continuer.");
       return;
     }
 
@@ -48,7 +48,7 @@ export default function Onboarding() {
     <div className="auth-page auth-page--wide auth-page--register">
       <div className="auth-mobile-hero">
         <p className="auth-mobile-hero__brand">Mappening</p>
-        <p>Trouvez les meilleurs evenements autour de vous !</p>
+        <p>Trouvez les meilleurs événements autour de vous !</p>
       </div>
 
       <div className="auth-login-stack auth-register-stack">
@@ -57,7 +57,7 @@ export default function Onboarding() {
         </div>
 
         <section className="auth-form-section">
-          <h2>Preferences d'evenements</h2>
+          <h2>Préférences d'événements</h2>
           <PreferencesGrid selected={preferences} toggle={handleToggle} />
           {error && <ErrorMessage message={error} />}
 

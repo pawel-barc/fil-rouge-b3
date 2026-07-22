@@ -3,7 +3,11 @@ import { toast } from "react-toastify";
 
 import useAuthStore from "../../auth/store/authStore";
 import { organizationsApi } from "../api/organizations.api";
-import { CATEGORIES, type CategoryName } from "../types/organization-categories";
+import {
+  CATEGORIES,
+  getOrganizationCategoryLabel,
+  type CategoryName,
+} from "../types/organization-categories";
 import type { Organization } from "../types/organization";
 import ErrorMessage from "../../../shared/components/feedback/ErrorMessage";
 import AddressAutocomplete from "../../../shared/components/forms/AddressAutocomplete";
@@ -95,7 +99,7 @@ const validateForm = (form: OrganizationProfileForm): OrganizationProfileErrors 
   }
 
   if (form.categories.length === 0) {
-    errors.categories = "Selectionnez au moins une categorie";
+    errors.categories = "Sélectionnez au moins une catégorie";
   }
 
   return errors;
@@ -161,7 +165,7 @@ export default function OrganizationProfile() {
     );
 
     if (existingContactEmail) {
-      setServerError("Cet email de contact est deja utilise");
+      setServerError("Cet email de contact est déjà utilisé");
       setIsSubmitting(false);
       return;
     }
@@ -173,7 +177,7 @@ export default function OrganizationProfile() {
     );
 
     if (existingSiret) {
-      setServerError("Ce SIRET est deja utilise");
+      setServerError("Ce SIRET est déjà utilisé");
       setIsSubmitting(false);
       return;
     }
@@ -206,7 +210,7 @@ export default function OrganizationProfile() {
       username: form.name.trim(),
     });
 
-    toast.success("Profil organization mis a jour");
+    toast.success("Profil organisation mis à jour");
     setIsSubmitting(false);
   };
 
@@ -358,14 +362,14 @@ export default function OrganizationProfile() {
             <div className="organization-event-form__wide">
               <CheckboxGroup
                 error={errors.categories}
-                label="Categories"
+                label="Catégories"
                 labelId="organization-categories"
               >
                 {CATEGORIES.map((category) => (
                   <Checkbox
                     checked={form.categories.includes(category)}
                     key={category}
-                    label={category}
+                    label={getOrganizationCategoryLabel(category)}
                     onChange={() => toggleCategory(category)}
                   />
                 ))}

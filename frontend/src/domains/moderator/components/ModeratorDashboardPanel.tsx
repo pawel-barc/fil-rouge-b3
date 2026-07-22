@@ -81,60 +81,60 @@ const viewContent: Record<
   }
 > = {
   dashboard: {
-    title: "Panel moderation",
+    title: "Panel modération",
     description:
       "Vue d'ensemble des validations, signalements et suspensions en cours.",
   },
   events: {
-    title: "Moderation des evenements",
-    description: "Validation, refus motive, masquage et suppression d'evenements.",
+    title: "Modération des événements",
+    description: "Validation, refus motivé, masquage et suppression d'événements.",
   },
   organizations: {
-    title: "Moderation des organizations",
+    title: "Modération des organisations",
     description:
-      "Validation, comptes organization et collaborateurs rattaches aux fiches.",
+      "Validation, comptes organisation et collaborateurs rattachés aux fiches.",
   },
   accounts: {
-    title: "Moderation des utilisateurs",
+    title: "Modération des utilisateurs",
     description: "Suspension temporaire des comptes utilisateurs.",
   },
   reports: {
     title: "Signalements",
-    description: "Suivi des signalements en attente, en cours et traites.",
+    description: "Suivi des signalements en attente, en cours et traités.",
   },
 };
 
 const reportStatusLabels: Record<ModerationReport["status"], string> = {
   open: "En attente",
   reviewing: "En cours de traitement",
-  resolved: "Traite",
-  dismissed: "Traite",
+  resolved: "Traité",
+  dismissed: "Traité",
 };
 
 const reportPriorityLabels: Record<ModerationReport["priority"], string> = {
-  low: "Priorite basse",
-  medium: "Priorite moyenne",
-  high: "Priorite haute",
+  low: "Priorité basse",
+  medium: "Priorité moyenne",
+  high: "Priorité haute",
 };
 
 const moderationActionLabels: Record<ModerationAction, string> = {
-  account_admin_updated: "Compte modifie par administration",
-  account_deleted: "Compte supprime",
-  account_restored: "Suspension de compte levee",
-  event_admin_updated: "Evenement modifie par administration",
-  event_approved: "Evenement valide",
-  event_rejected: "Evenement refuse",
-  event_hidden: "Evenement masque",
-  event_deleted: "Evenement supprime",
-  event_restored: "Evenement restaure",
-  organization_admin_updated: "Organization modifiee par administration",
-  organization_approved: "Organization validee",
-  organization_deleted: "Organization supprimee",
-  organization_rejected: "Organization refusee",
+  account_admin_updated: "Compte modifié par administration",
+  account_deleted: "Compte supprimé",
+  account_restored: "Suspension de compte levée",
+  event_admin_updated: "Événement modifié par administration",
+  event_approved: "Événement validé",
+  event_rejected: "Événement refusé",
+  event_hidden: "Événement masqué",
+  event_deleted: "Événement supprimé",
+  event_restored: "Événement restauré",
+  organization_admin_updated: "Organisation modifiée par administration",
+  organization_approved: "Organisation validée",
+  organization_deleted: "Organisation supprimée",
+  organization_rejected: "Organisation refusée",
   account_suspended: "Compte suspendu",
   report_reviewing: "Signalement pris en charge",
-  report_resolved: "Signalement confirme",
-  report_dismissed: "Signalement restaure",
+  report_resolved: "Signalement confirmé",
+  report_dismissed: "Signalement restauré",
 };
 
 const handledReportOutcomes: Record<
@@ -150,20 +150,20 @@ const handledReportOutcomes: Record<
     action: "report_resolved",
     label: "Suspendu",
     note:
-      "Decision: signalement confirme, la cible est marquee comme suspendue apres verification.",
+      "Décision: signalement confirmé, la cible est marquée comme suspendue après vérification.",
     variant: "suspended",
   },
   dismissed: {
     action: "report_dismissed",
-    label: "Restaure",
+    label: "Restauré",
     note:
-      "Decision: signalement classe, la cible est restauree ou maintenue accessible.",
+      "Décision: signalement classé, la cible est restaurée ou maintenue accessible.",
     variant: "success",
   },
 };
 
 const formatDate = (value?: string | null) =>
-  value ? new Date(value).toLocaleDateString("fr-FR") : "Non renseigne";
+  value ? new Date(value).toLocaleDateString("fr-FR") : "Non renseigné";
 
 const getTargetKey = (targetType: ModerationTargetType, targetId: number) =>
   `${targetType}-${targetId}`;
@@ -260,6 +260,7 @@ export default function ModeratorDashboard({
     useState<ModeratorDecisionRequest | null>(null);
   const [decisionReason, setDecisionReason] = useState("");
   const [decisionReasonError, setDecisionReasonError] = useState("");
+  const [isDecisionSubmitting, setIsDecisionSubmitting] = useState(false);
 
   const canFinalizeEvents = currentUser?.role === "admin";
   const accountSummaries = useMemo(
@@ -415,16 +416,19 @@ export default function ModeratorDashboard({
     setDecisionRequest(request);
     setDecisionReason("");
     setDecisionReasonError("");
+    setIsDecisionSubmitting(false);
   };
 
   const closeDecisionModal = () => {
+    if (isDecisionSubmitting) return;
+
     setDecisionRequest(null);
     setDecisionReason("");
     setDecisionReasonError("");
   };
 
   const confirmDecision = async () => {
-    if (!decisionRequest) return;
+    if (!decisionRequest || isDecisionSubmitting) return;
 
     const reason = decisionReason.trim();
 
@@ -433,11 +437,17 @@ export default function ModeratorDashboard({
       return;
     }
 
-    const result = await decisionRequest.onConfirm(reason);
+    setIsDecisionSubmitting(true);
+    try {
+      const result = await decisionRequest.onConfirm(reason);
+      if (result === false) return;
 
-    if (result === false) return;
-
-    closeDecisionModal();
+      setDecisionRequest(null);
+      setDecisionReason("");
+      setDecisionReasonError("");
+    } finally {
+      setIsDecisionSubmitting(false);
+    }
   };
 
   const suspendReportedEvent = async (
@@ -471,7 +481,7 @@ export default function ModeratorDashboard({
       "Compte valide",
     );
     if (!ok) return false;
-    toast.success(`${organization.name} est validee`);
+    toast.success(`${organization.name} est validée`);
     return true;
   };
 
@@ -483,7 +493,7 @@ export default function ModeratorDashboard({
       reason,
     );
     if (!ok) return false;
-    toast.success(`${organization.name} est refusee`);
+    toast.success(`${organization.name} est refusée`);
     return true;
   };
 
@@ -493,33 +503,33 @@ export default function ModeratorDashboard({
     );
 
     if (!organization) {
-      toast.error("Impossible de publier un evenement d'une organization inactive");
+      toast.error("Impossible de publier un événement d'une organisation inactive");
       return;
     }
 
-    const ok = await recordDecision("event_approved", "event", event.id, "Evenement valide");
+    const ok = await recordDecision("event_approved", "event", event.id, "Événement validé");
     if (!ok) return false;
-    toast.success(`${event.title} est publie`);
+    toast.success(`${event.title} est publié`);
   };
 
   const handleRejectEvent = async (event: Event, reason: string) => {
     const organization = activeOrganizations.find((item) => item.id === event.organization_id);
 
     if (!organization) {
-      toast.error("Organization rattachee introuvable");
+      toast.error("Organisation rattachée introuvable");
       return false;
     }
 
     const ok = await recordDecision("event_rejected", "event", event.id, reason);
     if (!ok) return false;
-    toast.success(`${event.title} est refuse`);
+    toast.success(`${event.title} est refusé`);
   };
 
   const handleSuspendEvent = async (event: Event, reason: string) => {
     const daysValue = Number(eventSuspensionDays[event.id] ?? 7);
 
     if (!Number.isFinite(daysValue) || daysValue < 1 || daysValue > 90) {
-      toast.error("La duree doit etre comprise entre 1 et 90 jours");
+      toast.error("La durée doit être comprise entre 1 et 90 jours");
       return false;
     }
 
@@ -540,13 +550,13 @@ export default function ModeratorDashboard({
       reason,
     );
     if (!ok) return false;
-    toast.success(`Suspension levee pour ${event.title}`);
+    toast.success(`Suspension levée pour ${event.title}`);
   };
 
   const handleDeleteEvent = async (event: Event, reason: string) => {
     const ok = await recordDecision("event_deleted", "event", event.id, reason);
     if (!ok) return false;
-    toast.success(`${event.title} est supprime`);
+    toast.success(`${event.title} est supprimé`);
   };
 
   const handleSuspendAccountSummary = async (
@@ -597,7 +607,7 @@ export default function ModeratorDashboard({
   ) => {
     const ok = await recordDecision("account_restored", "account", account.account_id, reason);
     if (!ok) return false;
-    toast.success(`Suspension levee pour ${account.display_name}`);
+    toast.success(`Suspension levée pour ${account.display_name}`);
   };
 
   const applyResolvedReportTargetAction = async (
@@ -712,7 +722,7 @@ export default function ModeratorDashboard({
       await applyDismissedReportTargetAction(report);
     }
 
-    toast.success("Signalement mis a jour");
+    toast.success("Signalement mis à jour");
   };
 
   const handleRestoreEvent = async (eventId: number, reason: string) => {
@@ -723,13 +733,13 @@ export default function ModeratorDashboard({
       reason,
     );
     if (!ok) return false;
-    toast.success("Evenement restaure en attente");
+    toast.success("Événement restauré en attente");
   };
 
   const handleDeleteEventPermanently = async (eventId: number, reason: string) => {
     const ok = await recordDecision("event_deleted", "event", eventId, reason);
     if (!ok) return false;
-    toast.success("Evenement supprime definitivement");
+    toast.success("Événement supprimé définitivement");
   };
 
   const updateSuspensionDays = (accountId: number, value: string) => {
@@ -1006,7 +1016,7 @@ export default function ModeratorDashboard({
       end: true,
     },
     {
-      label: "Evenements",
+      label: "Événements",
       to: ROUTES.MODERATOR.EVENTS,
       value: staffSummary.events.total,
       detail: `${staffSummary.events.pending} en attente`,
@@ -1070,17 +1080,17 @@ export default function ModeratorDashboard({
 
       {!canAccessCurrentView && (
         <section className="admin-section admin-section--wide">
-          <EmptyState message="Vous n'avez pas les permissions necessaires pour cette vue." />
+          <EmptyState message="Vous n'avez pas les permissions nécessaires pour cette vue." />
         </section>
       )}
 
       {isEventsView && (canReviewEvents || canModerateEvents) && (
-        <Toolbar ariaLabel="Filtres des evenements" className="admin-toolbar">
+        <Toolbar ariaLabel="Filtres des événements" className="admin-toolbar">
           <label>
             Rechercher
             <Input
               value={eventSearch}
-              placeholder="Titre, ville, organization..."
+              placeholder="Titre, ville, organisation..."
               onChange={(event) => setEventSearch(event.target.value)}
             />
           </label>
@@ -1093,7 +1103,7 @@ export default function ModeratorDashboard({
               }
             >
               <option value="date-asc">Date croissante</option>
-              <option value="date-desc">Date decroissante</option>
+              <option value="date-desc">Date décroissante</option>
               <option value="title-asc">Titre A-Z</option>
               <option value="city-asc">Ville A-Z</option>
             </Select>
@@ -1104,12 +1114,12 @@ export default function ModeratorDashboard({
       {isEventsView && canReviewEvents && (
         <section className="admin-section admin-section--wide">
           <div className="admin-panel__heading admin-section__title">
-            <h2>Evenements en attente</h2>
+            <h2>Événements en attente</h2>
             <span className="admin-count">{filteredPendingEvents.length}</span>
           </div>
 
           {filteredPendingEvents.length === 0 ? (
-            <EmptyState message="Aucun evenement en attente." />
+            <EmptyState message="Aucun événement en attente." />
           ) : (
             <div className="organization-review-list">
               {filteredPendingEvents.map((event) => (
@@ -1135,12 +1145,12 @@ export default function ModeratorDashboard({
       {isEventsView && canModerateEvents && (
         <section className="admin-section admin-section--wide">
           <div className="admin-panel__heading admin-section__title">
-            <h2>Evenements publies</h2>
+            <h2>Événements publiés</h2>
             <span className="admin-count">{filteredPublishedEvents.length}</span>
           </div>
 
           {filteredPublishedEvents.length === 0 ? (
-            <EmptyState message="Aucun evenement publie." />
+            <EmptyState message="Aucun événement publié." />
           ) : (
             <div className="organization-review-list">
               {filteredPublishedEvents.map((event) => (
@@ -1174,12 +1184,12 @@ export default function ModeratorDashboard({
       {isEventsView && canModerateEvents && (
         <section className="admin-section admin-section--wide">
           <div className="admin-panel__heading admin-section__title">
-            <h2>Evenements suspendus</h2>
+            <h2>Événements suspendus</h2>
             <span className="admin-count">{filteredSuspendedEvents.length}</span>
           </div>
 
           {filteredSuspendedEvents.length === 0 ? (
-            <EmptyState message="Aucun evenement suspendu." />
+            <EmptyState message="Aucun événement suspendu." />
           ) : (
             <div className="organization-review-list">
               {filteredSuspendedEvents.map((event) => (
@@ -1518,6 +1528,7 @@ export default function ModeratorDashboard({
       )}
       <DecisionReasonModal
         error={decisionReasonError}
+        loading={isDecisionSubmitting}
         open={!!decisionRequest}
         reason={decisionReason}
         title={decisionRequest?.title ?? "Justifier la decision"}
@@ -1565,7 +1576,7 @@ function EventModerationCard({
         </div>
         <dl className="organization-review__details">
           <div>
-            <dt>Horaires de l'evenement</dt>
+            <dt>Horaires de l'événement</dt>
             <dd>{formatEventDateRange(event)}</dd>
           </div>
           <div>
@@ -1638,7 +1649,7 @@ function PublishedEventModerationCard({
         </div>
         <dl className="organization-review__details">
           <div>
-            <dt>Horaires de l'evenement</dt>
+            <dt>Horaires de l'événement</dt>
             <dd>{formatEventDateRange(event)}</dd>
           </div>
           <div>
@@ -2010,7 +2021,7 @@ function ReportCard({
               {isDetailOpen && (
                 <div className="moderator-report-detail">
                   <div className="moderator-report-detail__section">
-                    <strong>Evenement signale</strong>
+                    <strong>Événement signalé</strong>
                     {targetEvent ? (
                       <dl className="organization-review__details">
                         <div>

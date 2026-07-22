@@ -39,11 +39,21 @@ func TestCanApplyAction_ModeratorReviewActions(t *testing.T) {
 }
 
 func TestOrganizationDecisionLabelsKeepApproveAndRejectDistinct(t *testing.T) {
-	if got := notificationTitle("organization_approved"); got != "Organisation validee" {
+	if got := notificationTitle("organization_approved"); got != "Organisation validée" {
 		t.Fatalf("expected approval title, got %q", got)
 	}
-	if got := notificationTitle("organization_rejected"); got != "Organisation refusee" {
+	if got := notificationTitle("organization_rejected"); got != "Organisation refusée" {
 		t.Fatalf("expected rejection title, got %q", got)
+	}
+}
+
+func TestNotificationMessageUsesFriendlyText(t *testing.T) {
+	if got := notificationMessage("event_approved", "Événement validé"); got != "Votre événement a été validé et publié sur Mappening." {
+		t.Fatalf("expected friendly approval message, got %q", got)
+	}
+
+	if got := notificationMessage("event_rejected", "Image non conforme"); got != "Votre événement a été refusé par l'équipe de modération. Motif : Image non conforme" {
+		t.Fatalf("expected rejection reason to be included, got %q", got)
 	}
 }
 

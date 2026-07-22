@@ -394,7 +394,7 @@ export default function OrganizationEvents() {
                           <dd>{formatEventDateRange(event)}</dd>
                         </div>
                         <div>
-                          <dt>Coordonnees</dt>
+                          <dt>Coordonnées</dt>
                           <dd>
                             {event.latitude ?? "Non renseignée"},{" "}
                             {event.longitude ?? "Non renseignée"}

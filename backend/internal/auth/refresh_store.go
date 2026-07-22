@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// Definit le contrat commun pour stocker et faire tourner les refresh tokens.
 type RefreshTokenStore interface {
 	Get(subject string) (string, bool, error)
 	SetWithExpiry(subject, jti string, expiresAt time.Time) error
@@ -15,6 +16,7 @@ type RefreshTokenStore interface {
 	Delete(subject string) error
 }
 
+// Represente le JTI courant d'un refresh token et sa date d'expiration.
 type refreshStoreEntry struct {
 	jti       string
 	expiresAt time.Time

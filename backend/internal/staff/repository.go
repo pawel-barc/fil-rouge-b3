@@ -188,6 +188,9 @@ func (r *Repository) applyTargetMutation(ctx context.Context, tx *sql.Tx, req Ac
 			SET deleted_at = COALESCE(deleted_at, NOW()), is_active = FALSE, updated_at = NOW()
 			WHERE id = $1
 		`, req.TargetID)
+		if err == nil {
+			err = softDeleteAccountRelationsInTx(ctx, tx, req.TargetID)
+		}
 	case "event_approved", "event_restored":
 		res, err = tx.ExecContext(ctx, `
 			UPDATE events
@@ -256,6 +259,59 @@ func (r *Repository) applyTargetMutation(ctx context.Context, tx *sql.Tx, req Ac
 	return nil
 }
 
+func softDeleteAccountRelationsInTx(ctx context.Context, tx *sql.Tx, accountID int64) error {
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE users
+		SET deleted_at = COALESCE(deleted_at, NOW()), updated_at = NOW()
+		WHERE account_id = $1
+		  AND deleted_at IS NULL
+	`, accountID); err != nil {
+		return fmt.Errorf("delete staff user profiles: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE organizers
+		SET deleted_at = COALESCE(deleted_at, NOW()), updated_at = NOW()
+		WHERE user_id IN (
+			SELECT id
+			FROM users
+			WHERE account_id = $1
+		)
+		  AND deleted_at IS NULL
+	`, accountID); err != nil {
+		return fmt.Errorf("delete staff organizer memberships: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE organizations
+		SET is_active = FALSE,
+		    is_verified = FALSE,
+		    deleted_at = COALESCE(deleted_at, NOW()),
+		    updated_at = NOW()
+		WHERE account_id = $1
+		  AND deleted_at IS NULL
+	`, accountID); err != nil {
+		return fmt.Errorf("delete staff organizations: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE events
+		SET is_active = FALSE,
+		    deleted_at = COALESCE(deleted_at, NOW()),
+		    updated_at = NOW()
+		WHERE organization_id IN (
+			SELECT id
+			FROM organizations
+			WHERE account_id = $1
+		)
+		  AND deleted_at IS NULL
+	`, accountID); err != nil {
+		return fmt.Errorf("delete staff organization events: %w", err)
+	}
+
+	return nil
+}
+
 func deleteRefreshTokensForAccount(ctx context.Context, tx *sql.Tx, accountID int64) error {
 	_, err := tx.ExecContext(ctx, `
 		DELETE FROM auth_refresh_tokens
@@ -318,6 +374,7 @@ func (r *Repository) createActionNotification(ctx context.Context, tx *sql.Tx, r
 		return nil, err
 	}
 	title := notificationTitle(req.Action)
+	message := notificationMessage(req.Action, req.Reason)
 	actionPath := actionURL(req.TargetType, req.TargetID)
 	messages := make([]mailer.Message, 0, len(recipientUserIDs))
 	for _, recipient := range recipientUserIDs {
@@ -326,10 +383,10 @@ func (r *Repository) createActionNotification(ctx context.Context, tx *sql.Tx, r
 				user_id, event_id, organization_id, notification_type_id, title, message, action_url
 			)
 			VALUES ($1, $2, $3, $4, $5, $6, $7)
-		`, recipient.UserID, eventID, organizationID, typeID, title, req.Reason, actionPath); err != nil {
+		`, recipient.UserID, eventID, organizationID, typeID, title, message, actionPath); err != nil {
 			return nil, fmt.Errorf("create action notification: %w", err)
 		}
-		messages = append(messages, r.notificationEmail(recipient, title, req.Reason, actionPath))
+		messages = append(messages, r.notificationEmail(recipient, title, message, actionPath))
 	}
 	return messages, nil
 }
@@ -431,6 +488,8 @@ func (r *Repository) listAccounts(ctx context.Context, options ListOptions) ([]A
 		clauses = append(clauses, "a.deleted_at IS NOT NULL")
 	case "pending":
 		clauses = append(clauses, "a.is_active = FALSE AND a.deleted_at IS NULL")
+	default:
+		clauses = append(clauses, "a.deleted_at IS NULL")
 	}
 	if options.Role == "moderator" {
 		clauses = append(clauses, `
@@ -491,7 +550,7 @@ func (r *Repository) listAccounts(ctx context.Context, options ListOptions) ([]A
 }
 
 func (r *Repository) listUsers(ctx context.Context, options ListOptions) ([]User, error) {
-	clauses := []string{}
+	clauses := []string{"u.deleted_at IS NULL", "a.deleted_at IS NULL"}
 	args := []any{}
 	if options.Query != "" {
 		args = append(args, "%"+strings.ToLower(strings.TrimSpace(options.Query))+"%")
@@ -505,6 +564,7 @@ func (r *Repository) listUsers(ctx context.Context, options ListOptions) ([]User
 			u.created_at, u.updated_at, u.deleted_at
 		FROM users u
 		JOIN roles r ON r.id = u.role_id
+		JOIN accounts a ON a.id = u.account_id
 	` + staffWhere(clauses) + `
 		ORDER BY u.id ASC`
 
@@ -543,6 +603,8 @@ func (r *Repository) listOrganizations(ctx context.Context, options ListOptions)
 		clauses = append(clauses, "o.is_verified = TRUE AND o.deleted_at IS NULL")
 	case "deleted":
 		clauses = append(clauses, "o.deleted_at IS NOT NULL")
+	default:
+		clauses = append(clauses, "o.deleted_at IS NULL", "a.deleted_at IS NULL")
 	}
 	query := `
 		SELECT o.id, o.account_id, o.name, o.contact_email, o.role_id,
@@ -551,6 +613,7 @@ func (r *Repository) listOrganizations(ctx context.Context, options ListOptions)
 			o.is_verified, o.is_active, o.created_at, o.updated_at, o.deleted_at,
 			COALESCE(string_agg(DISTINCT oc.slug, ',' ORDER BY oc.slug), '') AS category_slugs
 		FROM organizations o
+		JOIN accounts a ON a.id = o.account_id
 		LEFT JOIN organization_categories_links ocl ON ocl.organization_id = o.id
 		LEFT JOIN organization_categories oc ON oc.id = ocl.organization_category_id
 	` + staffWhere(clauses) + `
@@ -613,9 +676,17 @@ func (r *Repository) listOrganizations(ctx context.Context, options ListOptions)
 
 func (r *Repository) listOrganizers(ctx context.Context, options ListOptions) ([]Organizer, error) {
 	query := `
-		SELECT id, user_id, organization_id, job_role, created_at, updated_at, deleted_at
-		FROM organizers
-		ORDER BY id ASC`
+		SELECT org.id, org.user_id, org.organization_id, org.job_role,
+			org.created_at, org.updated_at, org.deleted_at
+		FROM organizers org
+		JOIN users u ON u.id = org.user_id
+		JOIN accounts a ON a.id = u.account_id
+		JOIN organizations o ON o.id = org.organization_id
+		WHERE org.deleted_at IS NULL
+		  AND u.deleted_at IS NULL
+		  AND a.deleted_at IS NULL
+		  AND o.deleted_at IS NULL
+		ORDER BY org.id ASC`
 	args := []any{}
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -977,24 +1048,56 @@ func parseOptionalActionTime(raw *string) sql.NullTime {
 func notificationTitle(action string) string {
 	switch action {
 	case "organization_approved":
-		return "Organisation validee"
+		return "Organisation validée"
 	case "organization_rejected", "organization_deleted":
-		return "Organisation refusee"
+		return "Organisation refusée"
 	case "event_approved":
-		return "Evenement valide"
+		return "Événement validé"
 	case "event_rejected":
-		return "Evenement refuse"
+		return "Événement refusé"
 	case "event_hidden":
-		return "Evenement suspendu"
+		return "Événement suspendu"
 	case "event_deleted":
-		return "Evenement supprime"
+		return "Événement supprimé"
 	case "account_suspended":
 		return "Compte suspendu"
 	case "account_restored", "event_restored":
-		return "Suspension levee"
+		return "Suspension levée"
 	default:
-		return "Decision de moderation"
+		return "Décision de modération"
 	}
+}
+
+func notificationMessage(action string, reason string) string {
+	reason = strings.TrimSpace(reason)
+
+	switch action {
+	case "organization_approved":
+		return "Votre organisation a été validée. Elle peut maintenant être visible sur Mappening."
+	case "organization_rejected", "organization_deleted":
+		return messageWithOptionalReason("Votre demande d'organisation a été refusée.", reason)
+	case "event_approved":
+		return "Votre événement a été validé et publié sur Mappening."
+	case "event_rejected":
+		return messageWithOptionalReason("Votre événement a été refusé par l'équipe de modération.", reason)
+	case "event_hidden":
+		return messageWithOptionalReason("Votre événement a été temporairement masqué.", reason)
+	case "event_deleted":
+		return messageWithOptionalReason("Votre événement a été supprimé.", reason)
+	case "account_suspended":
+		return messageWithOptionalReason("Votre compte a été temporairement suspendu.", reason)
+	case "account_restored", "event_restored":
+		return messageWithOptionalReason("La suspension a été levée.", reason)
+	default:
+		return messageWithOptionalReason("Une décision de modération a été appliquée.", reason)
+	}
+}
+
+func messageWithOptionalReason(message string, reason string) string {
+	if reason == "" {
+		return message
+	}
+	return message + " Motif : " + reason
 }
 
 func actionURL(targetType string, targetID int64) string {

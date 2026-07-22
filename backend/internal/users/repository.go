@@ -195,7 +195,7 @@ func (r *Repository) Create(ctx context.Context, user *User) (int64, error) {
 	if err := replaceEventPreferencesInTx(ctx, tx, profileID, user.PreferenceSlugs); err != nil {
 		return 0, err
 	}
-	if err := createAccountNotification(ctx, tx, id, "welcome_email", "Bienvenue sur Mappening", "Votre compte Mappening est pret.", "/account"); err != nil {
+	if err := createAccountNotification(ctx, tx, id, "welcome_email", "Bienvenue sur Mappening", "Votre compte Mappening est prêt.", "/account"); err != nil {
 		return 0, err
 	}
 
@@ -288,7 +288,7 @@ func (r *Repository) CreateOrganization(ctx context.Context, registration Organi
 	if err != nil {
 		return nil, 0, fmt.Errorf("create organizer: %w", err)
 	}
-	if err := createAccountNotification(ctx, tx, accountID, "welcome_email", "Bienvenue sur Mappening", "Votre espace organisation est pret. Il sera visible apres validation.", "/organization"); err != nil {
+	if err := createAccountNotification(ctx, tx, accountID, "welcome_email", "Bienvenue sur Mappening", "Votre espace organisation est prêt. Il sera visible après validation.", "/organization"); err != nil {
 		return nil, 0, err
 	}
 
@@ -383,7 +383,7 @@ func (r *Repository) UpdatePassword(ctx context.Context, userID int64, passwordH
 		return ErrUserNotFound
 	}
 
-	if err := createAccountNotification(ctx, r.db, userID, "password_changed", "Mot de passe modifie", "Votre mot de passe vient d'etre modifie.", "/account/profile/change-password"); err != nil {
+	if err := createAccountNotification(ctx, r.db, userID, "password_changed", "Mot de passe modifié", "Votre mot de passe vient d'être modifié.", "/account/profile/change-password"); err != nil {
 		return err
 	}
 
@@ -428,7 +428,7 @@ func (r *Repository) CreatePasswordResetToken(ctx context.Context, email string,
 	`, tokenHash, user.ID, expiresAt); err != nil {
 		return false, fmt.Errorf("create password reset token: %w", err)
 	}
-	if err := createAccountNotification(ctx, r.db, user.ID, "password_reset_requested", "Reinitialisation demandee", "Un lien de reinitialisation de mot de passe vient d'etre envoye.", "/account/profile/change-password"); err != nil {
+	if err := createAccountNotification(ctx, r.db, user.ID, "password_reset_requested", "Réinitialisation demandée", "Un lien de réinitialisation de mot de passe vient d'être envoyé.", "/account/profile/change-password"); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -482,7 +482,7 @@ func (r *Repository) ResetPasswordWithToken(ctx context.Context, token string, p
 		return fmt.Errorf("consume password reset token: %w", err)
 	}
 
-	if err := createAccountNotification(ctx, tx, accountID, "password_changed", "Mot de passe modifie", "Votre mot de passe vient d'etre modifie.", "/account/profile/change-password"); err != nil {
+	if err := createAccountNotification(ctx, tx, accountID, "password_changed", "Mot de passe modifié", "Votre mot de passe vient d'être modifié.", "/account/profile/change-password"); err != nil {
 		return err
 	}
 
@@ -757,24 +757,35 @@ func createAccountNotification(ctx context.Context, exec notificationExecutor, a
 }
 
 func (r *Repository) Delete(ctx context.Context, userID int64) error {
-	const query = `
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin delete user tx: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	res, err := tx.ExecContext(ctx, `
 		UPDATE accounts
 		SET deleted_at = COALESCE(deleted_at, NOW()), updated_at = NOW(), is_active = FALSE
 		WHERE id = $1
 		  AND deleted_at IS NULL
-	`
-
-	res, err := r.db.ExecContext(ctx, query, userID)
+	`, userID)
 	if err != nil {
 		return fmt.Errorf("delete user: %w", err)
 	}
-
 	n, err := res.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("delete user rows affected: %w", err)
 	}
 	if n == 0 {
 		return ErrUserNotFound
+	}
+	if err := softDeleteAccountRelations(ctx, tx, userID); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delete user tx: %w", err)
 	}
 
 	return nil
@@ -824,12 +835,68 @@ func (r *Repository) DeletePreservingAdminAccess(ctx context.Context, currentUse
 	if n == 0 {
 		return nil, ErrUserNotFound
 	}
+	if err := softDeleteAccountRelations(ctx, tx, userID); err != nil {
+		return nil, err
+	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit protected delete user tx: %w", err)
 	}
 
 	return user, nil
+}
+
+func softDeleteAccountRelations(ctx context.Context, tx *sql.Tx, accountID int64) error {
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE users
+		SET deleted_at = COALESCE(deleted_at, NOW()), updated_at = NOW()
+		WHERE account_id = $1
+		  AND deleted_at IS NULL
+	`, accountID); err != nil {
+		return fmt.Errorf("delete user profiles: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE organizers
+		SET deleted_at = COALESCE(deleted_at, NOW()), updated_at = NOW()
+		WHERE user_id IN (
+			SELECT id
+			FROM users
+			WHERE account_id = $1
+		)
+		  AND deleted_at IS NULL
+	`, accountID); err != nil {
+		return fmt.Errorf("delete organizer memberships: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE organizations
+		SET is_active = FALSE,
+		    is_verified = FALSE,
+		    deleted_at = COALESCE(deleted_at, NOW()),
+		    updated_at = NOW()
+		WHERE account_id = $1
+		  AND deleted_at IS NULL
+	`, accountID); err != nil {
+		return fmt.Errorf("delete organizations: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE events
+		SET is_active = FALSE,
+		    deleted_at = COALESCE(deleted_at, NOW()),
+		    updated_at = NOW()
+		WHERE organization_id IN (
+			SELECT id
+			FROM organizations
+			WHERE account_id = $1
+		)
+		  AND deleted_at IS NULL
+	`, accountID); err != nil {
+		return fmt.Errorf("delete organization events: %w", err)
+	}
+
+	return nil
 }
 
 func (r *Repository) Deactivate(ctx context.Context, userID int64) error {

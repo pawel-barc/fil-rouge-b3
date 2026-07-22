@@ -42,10 +42,10 @@ export default function ResetPassword() {
         return;
       }
 
-      toast.success("Mot de passe mis a jour");
+      toast.success("Mot de passe mis à jour");
       navigate(ROUTES.PUBLIC.LOGIN, { replace: true });
     } catch {
-      setServerError("Erreur lors de la reinitialisation");
+      setServerError("Erreur lors de la réinitialisation");
     } finally {
       setLoading(false);
     }
@@ -53,7 +53,7 @@ export default function ResetPassword() {
 
   return (
     <div className="auth-page">
-      <h1>Reinitialiser le mot de passe</h1>
+      <h1>Réinitialiser le mot de passe</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <FormField
@@ -91,7 +91,7 @@ export default function ResetPassword() {
         </Button>
       </form>
 
-      <Link to={ROUTES.PUBLIC.LOGIN}>Retour a la connexion</Link>
+      <Link to={ROUTES.PUBLIC.LOGIN}>Retour à la connexion</Link>
     </div>
   );
 }

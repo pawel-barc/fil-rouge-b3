@@ -63,7 +63,7 @@ export default function ImageField({
           {canPreview ? (
           <img src={previewUrl} alt="" loading="lazy" />
         ) : (
-          <span>Aucune image selectionnee</span>
+          <span>Aucune image sélectionnée</span>
         )}
         </div>
         <input

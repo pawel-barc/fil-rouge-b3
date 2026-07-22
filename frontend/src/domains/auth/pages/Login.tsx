@@ -10,7 +10,7 @@ export default function Login() {
     <div className="auth-page auth-page--login">
       <div className="auth-mobile-hero">
         <p className="auth-mobile-hero__brand">Mappening</p>
-        <p>Trouvez les meilleurs evenements autour de vous !</p>
+        <p>Trouvez les meilleurs événements autour de vous !</p>
       </div>
 
       <div className="auth-login-stack">

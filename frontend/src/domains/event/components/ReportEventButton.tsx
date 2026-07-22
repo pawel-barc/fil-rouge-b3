@@ -28,9 +28,9 @@ export default function ReportEventButton({ event }: Props) {
   const canReportRole = reportAllowedRoles.has(currentUser.role);
   const userId = canReportRole && currentUser.is_active ? currentUser.user_id : undefined;
   const unavailableMessage = !canReportRole
-      ? "Seuls les comptes utilisateur et staff peuvent signaler un evenement."
+      ? "Seuls les comptes utilisateur et staff peuvent signaler un événement."
       : !currentUser.is_active
-        ? "Votre compte doit etre actif pour signaler un evenement."
+        ? "Votre compte doit être actif pour signaler un événement."
         : !currentUser.user_id
           ? "Profil utilisateur introuvable pour ce compte."
         : null;
@@ -83,7 +83,7 @@ export default function ReportEventButton({ event }: Props) {
     setDetails("");
     setIsOpen(false);
     setIsSubmitting(false);
-    toast.success("Signalement transmis a la moderation");
+    toast.success("Signalement transmis à la modération");
   };
 
   return (
@@ -101,10 +101,10 @@ export default function ReportEventButton({ event }: Props) {
         disabled={isSubmitting || isReportUnavailable}
         loading={isSubmitting}
         loadingLabel="Envoi..."
-        aria-label="Signaler cet evenement"
+        aria-label="Signaler cet événement"
         aria-describedby={unavailableMessage ? statusId : undefined}
         aria-expanded={isOpen}
-        title={unavailableMessage ?? "Signaler cet evenement"}
+        title={unavailableMessage ?? "Signaler cet événement"}
         onClick={toggleReportForm}
       >
       </Button>
@@ -128,7 +128,7 @@ export default function ReportEventButton({ event }: Props) {
               submitReport();
             }}
           >
-            <h2>Signaler un evenement</h2>
+            <h2>Signaler un événement</h2>
             <label htmlFor={`report-details-${event.id}`}>
               Details du signalement
               <Textarea

@@ -16,7 +16,11 @@ import { ROUTES } from "../../../shared/constants/routes";
 import useDataStore from "../../../shared/store/dataStore";
 import useAuthStore from "../../auth/store/authStore";
 import { organizationsApi } from "../api/organizations.api";
-import { CATEGORIES, type OrganizationCategoryName } from "../types/organization-categories";
+import {
+  CATEGORIES,
+  getOrganizationCategoryLabel,
+  type OrganizationCategoryName,
+} from "../types/organization-categories";
 import {
   emptyOrganizationForm,
   emptyOrganizerProfileForm,
@@ -159,7 +163,7 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
     }
 
     upsertOrganizers([memberResult.data]);
-    toast.success("Organisation créée et rattachee à votre compte");
+    toast.success("Organisation créée et rattachée à votre compte");
     setIsSubmitting(false);
     navigate(ROUTES.USER.ORGANIZATIONS, { replace: true });
   };
@@ -168,7 +172,7 @@ export default function OrganizationSetup({ mode = "become" }: Props) {
     return (
       <section className="organization-setup">
         <h1>{title}</h1>
-        <ErrorMessage message="Vous devez être connecte avec un compte utilisateur." />
+        <ErrorMessage message="Vous devez être connecté avec un compte utilisateur." />
       </section>
     );
   }
@@ -382,14 +386,14 @@ export function OrganizationFields({
         <div className="organization-form__wide">
           <CheckboxGroup
             error={errors.categories}
-            label="Categories"
+            label="Catégories"
             labelId="organization-categories"
           >
             {CATEGORIES.map((category) => (
               <Checkbox
                 checked={form.categories.includes(category)}
                 key={category}
-                label={category}
+                label={getOrganizationCategoryLabel(category)}
                 onChange={() => onCategoryToggle(category)}
               />
             ))}

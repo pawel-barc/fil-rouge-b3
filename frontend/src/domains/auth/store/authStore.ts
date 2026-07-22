@@ -7,19 +7,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import { isAccountSuspended, ROLE_IDS } from "../../user/types/user";
+import { isAccountSuspended } from "../../user/types/user";
 import type { AuthenticatedUser } from "../../user/types/user";
 import type { AuthState } from "./types";
 
-const normalizeAuthenticatedUser = (user: AuthenticatedUser): AuthenticatedUser => {
-  if (user.role !== "organization") return user;
-
-  return {
-    ...user,
-    role: "user",
-    role_id: ROLE_IDS.user,
-  };
-};
+const normalizeAuthenticatedUser = (
+  user: AuthenticatedUser,
+): AuthenticatedUser => user;
 
 const useAuthStore = create<AuthState>()(
   persist(

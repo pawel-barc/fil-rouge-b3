@@ -21,7 +21,7 @@ export const eventFormSchema = z
       .regex(/^\d{5}$/, "Le code postal doit contenir 5 chiffres"),
     categories: z
       .array(z.enum(EVENT_CATEGORIES))
-      .min(1, "Selectionnez au moins une categorie"),
+      .min(1, "Sélectionnez au moins une catégorie"),
     image: z
       .string()
       .trim()

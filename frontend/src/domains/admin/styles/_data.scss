@@ -590,8 +590,23 @@
   min-height: 0;
 }
 
+.admin-embedded-form__title {
+  margin: 0 0 12px;
+  padding-right: 44px;
+  color: var(--text-h);
+  font-size: clamp(20px, 4vw, 26px);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
 .admin-embedded-form > form {
   flex: 1;
+}
+
+.admin-embedded-form > form > .admin-actions {
+  margin-top: 18px;
+  padding-top: 6px;
 }
 
 @include respond-below($bp-sm) {

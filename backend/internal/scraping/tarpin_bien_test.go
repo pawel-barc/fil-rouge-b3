@@ -8,6 +8,23 @@ import (
 	"time"
 )
 
+func TestIsWithinMarseilleRadius(t *testing.T) {
+	if !isWithinMarseilleRadius(43.4075, 5.0550) {
+		t.Fatal("expected Martigues to be accepted inside the Marseille radius")
+	}
+
+	if isWithinMarseilleRadius(43.9493, 4.8055) {
+		t.Fatal("expected Avignon to be rejected outside the Marseille radius")
+	}
+}
+
+func TestDistanceInKilometers(t *testing.T) {
+	distance := distanceInKilometers(marseilleLatitude, marseilleLongitude, 43.4075, 5.0550)
+	if distance < 25 || distance > 35 {
+		t.Fatalf("expected Marseille to Martigues distance around 30 km, got %.1f", distance)
+	}
+}
+
 func TestParseFrenchDateRange(t *testing.T) {
 	start, end, err := parseFrenchDateRange("Du 05 juin 2025 au 31 decembre 2026")
 	if err != nil {

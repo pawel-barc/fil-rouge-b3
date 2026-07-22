@@ -52,7 +52,7 @@ export default function EventListingCard({
       </div>
       <div className="event-card__content">
         <div className="event-card__meta">
-          <div className="event-card__tags" aria-label="Tags de l'evenement">
+          <div className="event-card__tags" aria-label="Tags de l'événement">
             {event.category_slugs.map((tag) => (
               <div className={`event-card__tag event-card__tag--${tag}`} key={tag}>
                 {tag}

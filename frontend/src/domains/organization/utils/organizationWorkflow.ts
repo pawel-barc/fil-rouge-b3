@@ -152,7 +152,7 @@ export const validateOrganizationForm = (
   );
 
   if (duplicatedEmail) {
-    errors.contact_email = "Cet email de contact est deja utilise";
+    errors.contact_email = "Cet email de contact est déjà utilisé";
   }
 
   const duplicatedSiret =
@@ -165,7 +165,7 @@ export const validateOrganizationForm = (
     );
 
   if (duplicatedSiret) {
-    errors.siret = "Ce SIRET est deja utilise";
+    errors.siret = "Ce SIRET est déjà utilisé";
   }
 
   return errors;
@@ -177,7 +177,7 @@ export const validateEventForm = (form: EventForm): EventFormErrors => {
 
 export const getOrganizationStatus = (organization: Organization) => {
   if (organization.deleted_at) {
-    return { label: "Supprimee", variant: "danger" as StatusBadgeVariant };
+    return { label: "Supprimée", variant: "danger" as StatusBadgeVariant };
   }
 
   if (organization.is_active && organization.is_verified) {
@@ -192,7 +192,7 @@ export const getOrganizationStatus = (organization: Organization) => {
 
 export const getManagedEventStatus = (event: Event) => {
   if (event.deleted_at) {
-    return { label: "Supprime", variant: "danger" as StatusBadgeVariant };
+    return { label: "Supprimé", variant: "danger" as StatusBadgeVariant };
   }
 
   if (isEventSuspended(event)) {
@@ -200,7 +200,7 @@ export const getManagedEventStatus = (event: Event) => {
   }
 
   if (event.is_active) {
-    return { label: "Valide", variant: "active" as StatusBadgeVariant };
+    return { label: "Validé", variant: "active" as StatusBadgeVariant };
   }
 
   return {
